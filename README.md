@@ -2,7 +2,7 @@
 
 English Part-of-Speech Tagger Library; a Ruby port of Lingua::EN::Tagger
 
-## Description
+### Description
 
 A Ruby port of Perl Lingua::EN::Tagger, a probability based, corpus-trained 
 tagger that assigns POS tags to English text based on a lookup dictionary and 
@@ -13,13 +13,13 @@ word morphology or can be set to be treated as nouns or other parts of speech.
 The tagger also extracts as many nouns and noun phrases as it can, using a set 
 of regular expressions.
 
-## Features
+### Features
 
 * Assigns POS tags to English text
 * Extract noun phrases from tagged text
 * etc.
 
-## Synopsis:
+### Synopsis:
 
     require 'rubygems'
     require 'engtagger'
@@ -62,7 +62,7 @@ of regular expressions.
 
     #=> {"Alice"=>1, "cat"=>1, "fat cat"=>1, "big fat cat"=>1}
 
-## Tag Set
+### Tag Set
 
 The set of POS tags used here is a modified version of the Penn Treebank tagset. Tags with non-letter characters have been redefined to work better in our data structures. Also, the "Determiner" tag (DET) has been changed from 'DT', in order to avoid confusion with the HTML tag, `<DT>`. 
 
@@ -112,26 +112,26 @@ The set of POS tags used here is a modified version of the Penn Treebank tagset.
     LRB     Punctuation, left bracket               (, {, [
     RRB     Punctuation, right bracket              ), }, ]
 
-## Requirements
+### Requirements
 
 * [Hpricot](http://code.whytheluckystiff.net/hpricot/) (optional)
 
-## Install
+### Install
 
     (sudo) gem install engtagger
 
-## Author
+### Author
 
 of this Ruby library 
 
 * Yoichiro Hasebe (yohasebe [at] gmail.com) 
 
-## Acknowledgement
+### Acknowledgement
 
 This Ruby library is a direct port of Lingua::EN::Tagger available at CPAN.
 The credit for the crucial part of its algorithm/design therefore goes to 
 Aaron Coburn, the author of the original Perl version.
 
-## License
+### License
 
 This library is distributed under the GPL.  Please see the LICENSE file.
