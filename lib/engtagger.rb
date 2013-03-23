@@ -20,13 +20,22 @@ $tag_path  = File.join($lexpath, "pos_tags.hash")
 
 # for memoization (code snipet from http://eigenclass.org/hiki/bounded-space-memoization)
 class Module
+  MAX_MEMOIZE_CACHE_SIZE = 100000
+
   def memoize(method)
     # alias_method is faster than define_method + old.bind(self).call
     alias_method "__memoized__#{method}", method
     module_eval <<-EOF
       def #{method}(*a, &b)
         # assumes the block won't change the result if the args are the same
-        (@__memoized_#{method}_cache ||= {})[a] ||= __memoized__#{method}(*a, &b)
+        @__memoized_#{method}_cache ||= {}
+        if (value = @__memoized_#{method}_cache.delete(a))
+          # implicitly flag value as recently used
+          @__memoized_#{method}_cache[a] = value
+        else
+          @__memoized_#{method}_cache.shift if @__memoized_#{method}_cache.size >= MAX_MEMOIZE_CACHE_SIZE
+          @__memoized_#{method}_cache[a] = __memoized__#{method}(*a, &b)
+        end
       end
     EOF
   end
