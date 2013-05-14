@@ -5,6 +5,7 @@ $LOAD_PATH << File.join(File.dirname(__FILE__), 'engtagger')
 require 'rubygems'
 require 'kconv'
 require 'porter'
+require 'lru_redux'
 
 # use hpricot for extracting English text from docs with XML like tags
 begin
@@ -18,24 +19,14 @@ $lexpath   = File.join(File.dirname(__FILE__), 'engtagger')
 $word_path = File.join($lexpath, "pos_words.hash")
 $tag_path  = File.join($lexpath, "pos_tags.hash")
 
-# for memoization (code snipet from http://eigenclass.org/hiki/bounded-space-memoization)
-class Module
-  MAX_MEMOIZE_CACHE_SIZE = 100000
-
-  def memoize(method)
+module BoundedSpaceMemoizable
+  def memoize(method, max_cache_size=100000)
     # alias_method is faster than define_method + old.bind(self).call
     alias_method "__memoized__#{method}", method
     module_eval <<-EOF
-      def #{method}(*a, &b)
-        # assumes the block won't change the result if the args are the same
-        @__memoized_#{method}_cache ||= {}
-        if (value = @__memoized_#{method}_cache.delete(a))
-          # implicitly flag value as recently used
-          @__memoized_#{method}_cache[a] = value
-        else
-          @__memoized_#{method}_cache.shift if @__memoized_#{method}_cache.size >= MAX_MEMOIZE_CACHE_SIZE
-          @__memoized_#{method}_cache[a] = __memoized__#{method}(*a, &b)
-        end
+      def #{method}(*a)
+        @__memoized_#{method}_cache ||= LruRedux::Cache.new(#{max_cache_size})
+        @__memoized_#{method}_cache[a] ||= __memoized__#{method}(*a)
       end
     EOF
   end
@@ -43,6 +34,7 @@ end
 
 # English part-of-speech tagger class
 class EngTagger
+  extend BoundedSpaceMemoizable
 
   #################
   # Class methods #
