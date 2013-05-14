@@ -3,7 +3,6 @@
 
 $LOAD_PATH << File.join(File.dirname(__FILE__), 'engtagger')
 require 'rubygems'
-require 'kconv'
 require 'porter'
 require 'lru_redux'
 
