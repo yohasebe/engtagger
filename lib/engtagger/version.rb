@@ -1,3 +1,3 @@
-module EngTagger
-  VERSION = "0.1.2"
+class EngTagger
+  VERSION = "0.1.3"
 end
