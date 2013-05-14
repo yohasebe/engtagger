@@ -7,18 +7,6 @@ require 'kconv'
 require 'porter'
 require 'lru_redux'
 
-# use hpricot for extracting English text from docs with XML like tags
-begin
-  require 'hpricot'
-rescue LoadError
-  $no_hpricot = true
-end
-
-# File paths
-$lexpath   = File.join(File.dirname(__FILE__), 'engtagger')
-$word_path = File.join($lexpath, "pos_words.hash")
-$tag_path  = File.join($lexpath, "pos_tags.hash")
-
 module BoundedSpaceMemoizable
   def memoize(method, max_cache_size=100000)
     # alias_method is faster than define_method + old.bind(self).call
@@ -35,6 +23,12 @@ end
 # English part-of-speech tagger class
 class EngTagger
   extend BoundedSpaceMemoizable
+
+  # File paths
+  DEFAULT_LEXPATH = File.join(File.dirname(__FILE__), 'engtagger')
+  DEFAULT_WORDPATH = File.join(DEFAULT_LEXPATH, "pos_words.hash")
+  DEFAULT_TAGPATH = File.join(DEFAULT_LEXPATH, "pos_tags.hash")
+
 
   #################
   # Class methods #
@@ -179,8 +173,8 @@ class EngTagger
     @conf[:tag_lex] = 'tags.yml'
     @conf[:word_lex] = 'words.yml'
     @conf[:unknown_lex] = 'unknown.yml'
-    @conf[:word_path] = $word_path
-    @conf[:tag_path] = $tag_path
+    @conf[:word_path] = DEFAULT_WORDPATH
+    @conf[:tag_path] = DEFAULT_TAGPATH
     @conf[:debug] = false
     # assuming that we start analyzing from the beginninga new sentence...
     @conf[:current_tag] = 'pp'
@@ -457,13 +451,7 @@ class EngTagger
   # in preparation for tagging
   def clean_text(text)
     return false unless valid_text(text)
-    text = text.encode('utf-8')
-    unless $no_hpricot
-      # Strip out any markup and convert entities to their proper form
-      cleaned_text = Hpricot(text).inner_text
-    else
-      cleaned_text = text
-    end
+    cleaned_text = text.encode('utf-8')
     tokenized = []
     # Tokenize the text (splitting on punctuation as you go)
     cleaned_text.split(/\s+/).each do |line|
@@ -682,8 +670,8 @@ class EngTagger
   # YAML data parser. It will load a YAML document with a collection of key:
   # value entries ( {pos tag}: {probability} ) mapped onto single keys ( {tag} ).
   # Each map is expected to be on a single line; i.e., det: { jj: 0.2, nn: 0.5, vb: 0.0002 }
-  def load_tags(lexicon)
-    path = File.join($lexpath, lexicon)
+  def load_tags(lexicon, lexpath = DEFAULT_LEXPATH)
+    path = File.join(lexpath, lexicon)
     fh = File.open(path, 'r')
     while line = fh.gets
       /\A"?([^{"]+)"?: \{ (.*) \}/ =~ line
@@ -705,8 +693,8 @@ class EngTagger
   # YAML data parser. It will load a YAML document with a collection of key:
   # value entries ( {pos tag}: {count} ) mapped onto single keys ( {a word} ).
   # Each map is expected to be on a single line; i.e., key: { jj: 103, nn: 34, vb: 1 }
-  def load_words(lexicon)
-    path = File.join($lexpath, lexicon)
+  def load_words(lexicon, lexpath = DEFAULT_LEXPATH)
+    path = File.join(lexpath, lexicon)
     fh = File.open(path, 'r')
     while line = fh.gets
       /\A"?([^{"]+)"?: \{ (.*) \}/ =~ line
