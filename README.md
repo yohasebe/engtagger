@@ -54,7 +54,11 @@ of regular expressions.
     proper = tgr.get_proper_nouns(tagged)
 
     #=> {"Alice"=>1}
-  
+
+    # Get all past tense verbs
+    pt_verbs = tgr.get_past_tense_verbs(tagged)
+
+    #=> {"chased"=>1}
 
     # Get all noun phrases of any syntactic level
     # (same as word_list but take a tagged input)
