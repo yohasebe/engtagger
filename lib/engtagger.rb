@@ -73,6 +73,9 @@ class EngTagger
   PART  = get_ext('vbn')   
   VBP   = get_ext('vbp')
   VBZ   = get_ext('vbz')
+  JJ    = get_ext('jj')
+  JJR   = get_ext('jjr')
+  JJS   = get_ext('jjs')
 
   # Convert a Treebank-style, abbreviated tag into verbose definitions 
   def self.explain_tag(tag)
@@ -407,6 +410,51 @@ class EngTagger
     return nil unless valid_text(tagged)
     VBZ
     trimmed = tagged.scan(VBZ).map do |n|
+      strip_tags(n)
+    end
+    ret = Hash.new(0)
+    trimmed.each do |n|
+      n = stem(n)
+      next unless n.length < 100  # sanity check on word length
+      ret[n] += 1 unless n =~ /\A\s*\z/
+    end
+    return ret
+  end
+
+  def get_adjectives(tagged)
+    return nil unless valid_text(tagged)
+    JJ
+    trimmed = tagged.scan(JJ).map do |n|
+      strip_tags(n)
+    end
+    ret = Hash.new(0)
+    trimmed.each do |n|
+      n = stem(n)
+      next unless n.length < 100  # sanity check on word length
+      ret[n] += 1 unless n =~ /\A\s*\z/
+    end
+    return ret
+  end
+
+  def get_comparative_adjectives(tagged)
+    return nil unless valid_text(tagged)
+    JJR
+    trimmed = tagged.scan(JJR).map do |n|
+      strip_tags(n)
+    end
+    ret = Hash.new(0)
+    trimmed.each do |n|
+      n = stem(n)
+      next unless n.length < 100  # sanity check on word length
+      ret[n] += 1 unless n =~ /\A\s*\z/
+    end
+    return ret
+  end  
+
+  def get_superlative_adjectives(tagged)
+    return nil unless valid_text(tagged)
+    JJS
+    trimmed = tagged.scan(JJS).map do |n|
       strip_tags(n)
     end
     ret = Hash.new(0)

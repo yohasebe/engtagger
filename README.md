@@ -60,6 +60,11 @@ of regular expressions.
 
     #=> {"chased"=>1}
 
+    # Get all the adjectives
+    adj = tgr.get_adjectives(tagged)
+
+    #=> {"big"=>1, "fat"=>1}
+
     # Get all noun phrases of any syntactic level
     # (same as word_list but take a tagged input)
     nps = tgr.get_noun_phrases(tagged)
