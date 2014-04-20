@@ -191,6 +191,11 @@ EOD
     text = ""
     assert(!@tagger.valid_text(text))
   end
+  
+  def test_override_default_params
+    @tagger = EngTagger.new(:longest_noun_phrase => 3)
+    assert_equal 3, @tagger.conf[:longest_noun_phrase]
+  end
 end
 
 # Number of errors detected: 24

@@ -191,7 +191,7 @@ class EngTagger
     @conf[:debug] = false
     # assuming that we start analyzing from the beginninga new sentence...
     @conf[:current_tag] = 'pp' 
-    @conf.merge(params) if params
+    @conf.merge!(params)
     unless File.exists?(@conf[:word_path]) and File.exists?(@conf[:tag_path])
       print "Couldn't locate POS lexicon, creating a new one" if @conf[:debug]
       @@hmm = Hash.new

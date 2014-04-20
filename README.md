@@ -135,6 +135,11 @@ of this Ruby library
 
 * Yoichiro Hasebe (yohasebe [at] gmail.com) 
 
+### Contributors
+
+* Carlos Ramirez III
+* Phil London
+
 ### Acknowledgement
 
 This Ruby library is a direct port of Lingua::EN::Tagger available at CPAN.
