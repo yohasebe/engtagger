@@ -330,6 +330,21 @@ class EngTagger
     return ret
   end
 
+  def get_verbs(tagged)
+    return nil unless valid_text(tagged)
+    VB
+    trimmed = tagged.scan(VB).map do |n|
+      strip_tags(n)
+    end
+    ret = Hash.new(0)
+    trimmed.each do |n|
+      n = stem(n)
+      next unless n.length < 100  # sanity check on word length
+      ret[n] += 1 unless n =~ /\A\s*\z/
+    end
+    return ret
+  end
+
   def get_infinitive_verbs(tagged)
     return nil unless valid_text(tagged)
     VB
