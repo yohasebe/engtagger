@@ -69,7 +69,7 @@ EOD
   def test_clean_text
     test = "<html><body>I am <b>100% sure</b> that Dr. Watson is too naive. I'm sorry.</body></html>"
     model = ["I","am","100","%","sure","that","Dr.","Watson","is","too","naive",".","I","'m","sorry","."]
-    assert_equal(model, @tagger.clean_text(test))
+    assert_equal(model, @tagger.clean_text(test)) unless $no_hpricot
   end
 
   def test_clean_word
