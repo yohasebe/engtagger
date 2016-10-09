@@ -76,6 +76,16 @@ class EngTagger
   JJ    = get_ext('jj')
   JJR   = get_ext('jjr')
   JJS   = get_ext('jjs')
+  RB    = get_ext('rb')
+  RBR   = get_ext('rbr')
+  RBS   = get_ext('rbs')
+  RP    = get_ext('rp')
+  WRB   = get_ext('wrb')
+  WDT   = get_ext('wdt')
+  WP    = get_ext('wp')
+  WPS   = get_ext('wps')
+  CC    = get_ext('cc')
+  IN    = get_ext('in')
 
   # Convert a Treebank-style, abbreviated tag into verbose definitions
   def self.explain_tag(tag)
@@ -281,14 +291,8 @@ class EngTagger
   # proper nouns. This method does not stem the found words.
   def get_proper_nouns(tagged)
     return nil unless valid_text(tagged)
-    trimmed = tagged.scan(NNP).map do |n|
-      strip_tags(n)
-    end
-    nnp = Hash.new(0)
-    trimmed.each do |n|
-      next unless n.length < 100  # sanity check on word length
-      nnp[n] += 1 unless n =~ /\A\s*\z/
-    end
+    tags = [NNP]
+    nnp = build_matches_hash(build_trimmed(tagged, tags))
     # Now for some fancy resolution stuff...
     nnp.keys.each do |key|
       words = key.split(/\s/)
@@ -317,162 +321,100 @@ class EngTagger
   # occurrence frequencies.
   def get_nouns(tagged)
     return nil unless valid_text(tagged)
-    NN
-    trimmed = tagged.scan(NN).map do |n|
-      strip_tags(n)
-    end
-    ret = Hash.new(0)
-    trimmed.each do |n|
-      n = stem(n)
-      next unless n.length < 100  # sanity check on word length
-      ret[n] += 1 unless n =~ /\A\s*\z/
-    end
-    return ret
+    tags = [NN]
+    build_matches_hash(build_trimmed(tagged, tags))
+  end
+
+  # Returns all types of verbs and does not descriminate between the various kinds.
+  # Is the combination of all other verb methods listed in this class.
+  def get_verbs(tagged)
+    return nil unless valid_text(tagged)
+    tags = [VB, VBD, VBG, PART, VBP, VBZ]
+    build_matches_hash(build_trimmed(tagged, tags))
   end
 
   def get_infinitive_verbs(tagged)
     return nil unless valid_text(tagged)
-    VB
-    trimmed = tagged.scan(VB).map do |n|
-      strip_tags(n)
-    end
-    ret = Hash.new(0)
-    trimmed.each do |n|
-      n = stem(n)
-      next unless n.length < 100  # sanity check on word length
-      ret[n] += 1 unless n =~ /\A\s*\z/
-    end
-    return ret
+    tags = [VB]
+    build_matches_hash(build_trimmed(tagged, tags))
   end
 
   def get_past_tense_verbs(tagged)
     return nil unless valid_text(tagged)
-    VBD
-    trimmed = tagged.scan(VBD).map do |n|
-      strip_tags(n)
-    end
-    ret = Hash.new(0)
-    trimmed.each do |n|
-      n = stem(n)
-      next unless n.length < 100  # sanity check on word length
-      ret[n] += 1 unless n =~ /\A\s*\z/
-    end
-    return ret
+    tags = [VBD]
+    build_matches_hash(build_trimmed(tagged, tags))
   end
 
   def get_gerund_verbs(tagged)
     return nil unless valid_text(tagged)
-    VBG
-    trimmed = tagged.scan(VBG).map do |n|
-      strip_tags(n)
-    end
-    ret = Hash.new(0)
-    trimmed.each do |n|
-      n = stem(n)
-      next unless n.length < 100  # sanity check on word length
-      ret[n] += 1 unless n =~ /\A\s*\z/
-    end
-    return ret
+    tags = [VBG]
+    build_matches_hash(build_trimmed(tagged, tags))
   end
 
   def get_passive_verbs(tagged)
     return nil unless valid_text(tagged)
-    PART
-    trimmed = tagged.scan(PART).map do |n|
-      strip_tags(n)
-    end
-    ret = Hash.new(0)
-    trimmed.each do |n|
-      n = stem(n)
-      next unless n.length < 100  # sanity check on word length
-      ret[n] += 1 unless n =~ /\A\s*\z/
-    end
-    return ret
+    tags = [PART]
+    build_matches_hash(build_trimmed(tagged, tags))
   end
-
 
   def get_base_present_verbs(tagged)
     return nil unless valid_text(tagged)
-    VBP
-    trimmed = tagged.scan(VBP).map do |n|
-      strip_tags(n)
-    end
-    ret = Hash.new(0)
-    trimmed.each do |n|
-      n = stem(n)
-      next unless n.length < 100  # sanity check on word length
-      ret[n] += 1 unless n =~ /\A\s*\z/
-    end
-    return ret
+    tags = [VBP]
+    build_matches_hash(build_trimmed(tagged, tags))
   end
 
   def get_present_verbs(tagged)
     return nil unless valid_text(tagged)
-    VBZ
-    trimmed = tagged.scan(VBZ).map do |n|
-      strip_tags(n)
-    end
-    ret = Hash.new(0)
-    trimmed.each do |n|
-      n = stem(n)
-      next unless n.length < 100  # sanity check on word length
-      ret[n] += 1 unless n =~ /\A\s*\z/
-    end
-    return ret
+    tags = [VBZ]
+    build_matches_hash(build_trimmed(tagged, tags))
   end
 
   def get_adjectives(tagged)
     return nil unless valid_text(tagged)
-    JJ
-    trimmed = tagged.scan(JJ).map do |n|
-      strip_tags(n)
-    end
-    ret = Hash.new(0)
-    trimmed.each do |n|
-      n = stem(n)
-      next unless n.length < 100  # sanity check on word length
-      ret[n] += 1 unless n =~ /\A\s*\z/
-    end
-    return ret
+    tags = [JJ]
+    build_matches_hash(build_trimmed(tagged, tags))
   end
 
   def get_comparative_adjectives(tagged)
     return nil unless valid_text(tagged)
-    JJR
-    trimmed = tagged.scan(JJR).map do |n|
-      strip_tags(n)
-    end
-    ret = Hash.new(0)
-    trimmed.each do |n|
-      n = stem(n)
-      next unless n.length < 100  # sanity check on word length
-      ret[n] += 1 unless n =~ /\A\s*\z/
-    end
-    return ret
+    tags = [JJR]
+    build_matches_hash(build_trimmed(tagged, tags))
   end
 
   def get_superlative_adjectives(tagged)
     return nil unless valid_text(tagged)
-    JJS
-    trimmed = tagged.scan(JJS).map do |n|
-      strip_tags(n)
-    end
-    ret = Hash.new(0)
-    trimmed.each do |n|
-      n = stem(n)
-      next unless n.length < 100  # sanity check on word length
-      ret[n] += 1 unless n =~ /\A\s*\z/
-    end
-    return ret
+    tags = [JJS]
+    build_matches_hash(build_trimmed(tagged, tags))
+  end
+
+  def get_adverbs(tagged)
+    return nil unless valid_text(tagged)
+    tags = [RB, RBR, RBS, RP]
+    build_matches_hash(build_trimmed(tagged, tags))
+  end
+
+  def get_interrogatives(tagged)
+    return nil unless valid_text(tagged)
+    tags = [WRB, WDT, WP, WPS]
+    build_matches_hash(build_trimmed(tagged, tags))
+  end
+  # To be consistent with documentation's naming of 'interrogative' parts of speech as 'question'
+  alias_method :get_question_parts, :get_interrogatives
+
+  # Returns all types of conjunctions and does not discriminate between the various kinds.
+  # E.g. coordinating, subordinating, correlative...
+  def get_conjunctions(tagged)
+    return nil unless valid_text(tagged)
+    tags = [CC, IN]
+    build_matches_hash(build_trimmed(tagged, tags))
   end
 
   # Given a POS-tagged text, this method returns only the maximal noun phrases.
   # May be called directly, but is also used by get_noun_phrases
   def get_max_noun_phrases(tagged)
-    return unless valid_text(tagged)
-    mn_phrases = tagged.scan(@@mnp).map do |m|
-      strip_tags(m)
-    end
+    return nil unless valid_text(tagged)
+    tags = [@@mnp]
+    mn_phrases = build_trimmed(tagged, tags)
     ret = Hash.new(0)
     mn_phrases.each do |p|
       p = stem(p) unless p =~ /\s/  # stem single words
@@ -543,6 +485,22 @@ class EngTagger
   ###################
 
   :private
+
+  def build_trimmed(tagged, tags)
+    tags.map { |tag| tagged.scan(tag) }.flatten.map do |n|
+      strip_tags(n)
+    end
+  end
+
+  def build_matches_hash(trimmed)
+    ret = Hash.new(0)
+    trimmed.each do |n|
+      n = stem(n)
+      next unless n.length < 100 # sanity check on word length
+      ret[n] += 1 unless n =~ /\A\s*\z/
+    end
+    ret
+  end
 
   # Downcase the first letter of word
   def lcfirst(word)
