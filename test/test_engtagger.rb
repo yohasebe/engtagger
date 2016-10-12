@@ -102,6 +102,38 @@ EOD
     assert_instance_of(Hash, result)
   end
 
+  def test_get_verbs
+    expected_result = { "have" => 1, "ruled" => 1, "contends" => 1 }
+    result = @tagger.get_verbs(@@tagged)
+    assert_equal(expected_result, result)
+  end
+
+  def test_get_adverbs
+    expected_result = { "otherwise" => 1 }
+    result = @tagger.get_adverbs(@@tagged)
+    assert_equal(expected_result, result)
+  end
+
+  def test_get_interrogatives
+    tagged = "<wdt>Which</wdt> <ppc>,</ppc> <wdt>whatever</wdt> <ppc>,</ppc> <wp>who</wp> <ppc>,</ppc> <wp>whoever</wp> <ppc>,</ppc> <wrb>when</wrb> <cc>and</cc> <wrb>how</wrb> <vbp>are</vbp> <det>all</det> <nns>examples</nns> <in>of</in> <nns>interrogatives</nns>"
+    expected_result = {"when"=>1, "how"=>1, "Which"=>1, "whatever"=>1, "who"=>1, "whoever"=>1}
+    result = @tagger.get_interrogatives(tagged)
+    assert_equal(expected_result, result)
+  end
+
+  def test_get_question_parts
+    tagged = "<wdt>Which</wdt> <ppc>,</ppc> <wdt>whatever</wdt> <ppc>,</ppc> <wp>who</wp> <ppc>,</ppc> <wp>whoever</wp> <ppc>,</ppc> <wrb>when</wrb> <cc>and</cc> <wrb>how</wrb> <vbp>are</vbp> <det>all</det> <nns>examples</nns> <in>of</in> <nns>interrogatives</nns>"
+    expected_result = {"when"=>1, "how"=>1, "Which"=>1, "whatever"=>1, "who"=>1, "whoever"=>1}
+    result = @tagger.get_question_parts(tagged)
+    assert_equal(expected_result, result)
+  end
+
+  def test_get_conjunctions
+    expected_result = { "and" => 2, "of" => 2, "for" => 1, "that" => 1, "in" => 1 }
+    result = @tagger.get_conjunctions(@@tagged)
+    assert_equal(expected_result, result)
+  end
+
   def test_get_proper_nouns
     test = "<nnp>BBC</nnp> <vbz>means</vbz> <nnp>British Broadcasting Corporation</nnp> <pp>.</pp>"
     result = @tagger.get_proper_nouns(test)

@@ -139,6 +139,7 @@ of this Ruby library
 
 * Carlos Ramirez III
 * Phil London
+* Bazay (Baron Bloomer)
 
 ### Acknowledgement
 
