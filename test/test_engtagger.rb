@@ -143,7 +143,13 @@ EOD
   def test_get_readable
     test = "I woke up to the sound of pouring rain."
     result = @tagger.get_readable(test)
-    assert(String, result)
+    expected_result = "I/PRP woke/VBD up/RB to/TO the/DET sound/NN of/IN pouring/VBG rain/NN ./PP"
+    assert_equal(expected_result, result)
+
+    test = "I woke up with a <bad> word."
+    result = @tagger.get_readable(test)
+    expected_result = "I/PRP woke/VBD up/RB with/IN a/DET <bad>/NNP word/NN ./PP"
+    assert_equal(expected_result, result)
   end
 
   def test_get_sentences
