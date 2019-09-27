@@ -18,20 +18,6 @@ $lexpath   = File.join(File.dirname(__FILE__), 'engtagger')
 $word_path = File.join($lexpath, "pos_words.hash")
 $tag_path  = File.join($lexpath, "pos_tags.hash")
 
-# for memoization (code snipet from http://eigenclass.org/hiki/bounded-space-memoization)
-class Module
-  def memoize(method)
-    # alias_method is faster than define_method + old.bind(self).call
-    alias_method "__memoized__#{method}", method
-    module_eval <<-EOF
-      def #{method}(*a, &b)
-        # assumes the block won't change the result if the args are the same
-        (@__memoized_#{method}_cache ||= {})[a] ||= __memoized__#{method}(*a, &b)
-      end
-    EOF
-  end
-end
-
 # English part-of-speech tagger class
 class EngTagger
 
@@ -825,6 +811,18 @@ class EngTagger
     fh.close
   end
 
+  # for memoization (code snipet from http://eigenclass.org/hiki/bounded-space-memoization)
+  def self.memoize(method)
+    # alias_method is faster than define_method + old.bind(self).call
+    alias_method "__memoized__#{method}", method
+    module_eval <<-EOF
+      def #{method}(*a, &b)
+        # assumes the block won't change the result if the args are the same
+        (@__memoized_#{method}_cache ||= {})[a] ||= __memoized__#{method}(*a, &b)
+      end
+    EOF
+  end
+  
   #memoize the stem and assign_tag methods
   memoize("stem")
   memoize("assign_tag")
