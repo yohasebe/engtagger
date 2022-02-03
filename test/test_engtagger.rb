@@ -21,7 +21,7 @@ EOD
     @tagger = EngTagger.new
     tagpath = File.join($ENGTAGGER_LIB, @tagger.conf[:tag_path])
     wordpath = File.join($ENGTAGGER_LIB, @tagger.conf[:word_path])
-    if !File.exist?(tagpath) or !File.exists?(wordpath)
+    if !File.exist?(tagpath) or !File.exist?(wordpath)
       @tagger.install
     end
   end
