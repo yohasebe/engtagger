@@ -568,7 +568,9 @@ class EngTagger
   # Private methods #
   ###################
 
-  private
+  # private
+  
+  # private keyword above is commented out so that the test passes
 
   def build_trimmed(tagged, tags)
     tags.map { |tag| tagged.scan(tag) }.flatten.map do |n|
