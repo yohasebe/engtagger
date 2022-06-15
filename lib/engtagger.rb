@@ -25,12 +25,18 @@ class EngTagger
   # Class methods #
   #################
 
-  # Return a class variable that holds probability data
+  # Return a class variable that holds probability data.
+  #
+  # @return [Hash] the probability data
+  #
   def self.hmm
     return @@hmm
   end
 
-  # Return a class variable that holds lexical data
+  # Return a class variable that holds lexical data.
+  #
+  # @return [Hash] the lexicon
+  #
   def self.lexicon
     return @@lexicon
   end
@@ -74,7 +80,12 @@ class EngTagger
   IN    = get_ext('in')
 
   # Convert a Treebank-style, abbreviated tag into verbose definitions
+  #
+  # @param tag [#to_s] the tag in question
+  # @return [String] the definition, if available
+  #
   def self.explain_tag(tag)
+    tag = tag.to_s.downcase
     if TAGS[tag]
       return TAGS[tag]
     else
@@ -207,21 +218,40 @@ class EngTagger
   # Public methods #
   ##################
 
-  # Examine the string provided and return it fully tagged in XML style
+  # Return an array of pairs of the form `["word", :tag]`.
+  #
+  # @param text [String] the input text
+  # @return [Array] the tagged words
+  #
+  def tag_pairs(text)
+    return [] unless valid_text(text)
+
+    out = clean_text(text).map do |word|
+      cleaned_word = clean_word word
+      tag = assign_tag(@conf[:current_tag], cleaned_word)
+      @conf[:current_tag] = tag = (tag and !tag.empty?) ? tag : 'nn'
+      [word, tag.to_sym]
+    end
+
+    # reset the tagger state
+    reset
+
+    out
+  end
+
+  # Examine the string provided and return it fully tagged in XML style.
+  #
+  # @param text [String] the input text
+  # @param verbose [false, true] whether to use verbose tags
+  # @return [String] the marked-up string
+  #
   def add_tags(text, verbose = false)
     return nil unless valid_text(text)
-    tagged = []
-    words = clean_text(text)
-    tags = Array.new
-    words.each do |word|
-      cleaned_word = clean_word(word)
-      tag = assign_tag(@conf[:current_tag], cleaned_word)
-      @conf[:current_tag] = tag = (tag and tag != "") ? tag : 'nn'
-      tag = EngTagger.explain_tag(tag) if verbose
-      tagged << '<' + tag + '>' + word + '</' + tag + '>'
-    end
-    reset
-    return tagged.join(' ')
+
+    tag_pairs(text).map do |word, tag|
+      tag = EngTagger.explain_tag(tag.to_s) if verbose
+      "<#{tag}>#{word}</#{tag}>"
+    end.join ' '
   end
 
   # Given a text string, return as many nouns and noun phrases as possible.
@@ -305,90 +335,150 @@ class EngTagger
 
   # Given a POS-tagged text, this method returns all nouns and their
   # occurrence frequencies.
+  #
+  # @param tagged [String] the tagged text
+  # @return [Hash] the hash of matches
+  #
   def get_nouns(tagged)
     return nil unless valid_text(tagged)
     tags = [NN]
     build_matches_hash(build_trimmed(tagged, tags))
   end
 
-  # Returns all types of verbs and does not descriminate between the various kinds.
-  # Is the combination of all other verb methods listed in this class.
+  # Returns all types of verbs and does not descriminate between the
+  # various kinds. Combines all other verb methods listed in this
+  # class.
+  #
+  # @param tagged [String] the tagged text
+  # @return [Hash] the hash of matches
+  #
   def get_verbs(tagged)
     return nil unless valid_text(tagged)
     tags = [VB, VBD, VBG, PART, VBP, VBZ]
     build_matches_hash(build_trimmed(tagged, tags))
   end
 
+  #
+  # @param tagged [String] the tagged text
+  # @return [Hash] the hash of matches
+  #
   def get_infinitive_verbs(tagged)
     return nil unless valid_text(tagged)
     tags = [VB]
     build_matches_hash(build_trimmed(tagged, tags))
   end
 
+  #
+  # @param tagged [String] the tagged text
+  # @return [Hash] the hash of matches
+  #
   def get_past_tense_verbs(tagged)
     return nil unless valid_text(tagged)
     tags = [VBD]
     build_matches_hash(build_trimmed(tagged, tags))
   end
 
+  #
+  # @param tagged [String] the tagged text
+  # @return [Hash] the hash of matches
+  #
   def get_gerund_verbs(tagged)
     return nil unless valid_text(tagged)
     tags = [VBG]
     build_matches_hash(build_trimmed(tagged, tags))
   end
 
+  #
+  # @param tagged [String] the tagged text
+  # @return [Hash] the hash of matches
+  #
   def get_passive_verbs(tagged)
     return nil unless valid_text(tagged)
     tags = [PART]
     build_matches_hash(build_trimmed(tagged, tags))
   end
 
+  #
+  # @param tagged [String] the tagged text
+  # @return [Hash] the hash of matches
+  #
   def get_base_present_verbs(tagged)
     return nil unless valid_text(tagged)
     tags = [VBP]
     build_matches_hash(build_trimmed(tagged, tags))
   end
 
+  #
+  # @param tagged [String] the tagged text
+  # @return [Hash] the hash of matches
+  #
   def get_present_verbs(tagged)
     return nil unless valid_text(tagged)
     tags = [VBZ]
     build_matches_hash(build_trimmed(tagged, tags))
   end
 
+  #
+  # @param tagged [String] the tagged text
+  # @return [Hash] the hash of matches
+  #
   def get_adjectives(tagged)
     return nil unless valid_text(tagged)
     tags = [JJ]
     build_matches_hash(build_trimmed(tagged, tags))
   end
 
+  #
+  # @param tagged [String] the tagged text
+  # @return [Hash] the hash of matches
+  #
   def get_comparative_adjectives(tagged)
     return nil unless valid_text(tagged)
     tags = [JJR]
     build_matches_hash(build_trimmed(tagged, tags))
   end
 
+  #
+  # @param tagged [String] the tagged text
+  # @return [Hash] the hash of matches
+  #
   def get_superlative_adjectives(tagged)
     return nil unless valid_text(tagged)
     tags = [JJS]
     build_matches_hash(build_trimmed(tagged, tags))
   end
 
+  #
+  # @param tagged [String] the tagged text
+  # @return [Hash] the hash of matches
+  #
   def get_adverbs(tagged)
     return nil unless valid_text(tagged)
     tags = [RB, RBR, RBS, RP]
     build_matches_hash(build_trimmed(tagged, tags))
   end
 
+  #
+  # @param tagged [String] the tagged text
+  # @return [Hash] the hash of matches
+  #
   def get_interrogatives(tagged)
     return nil unless valid_text(tagged)
     tags = [WRB, WDT, WP, WPS]
     build_matches_hash(build_trimmed(tagged, tags))
   end
-  # To be consistent with documentation's naming of 'interrogative' parts of speech as 'question'
+
+  # To be consistent with documentation's naming of 'interrogative'
+  # parts of speech as 'question'
   alias_method :get_question_parts, :get_interrogatives
 
-  # Returns all types of conjunctions and does not discriminate between the various kinds.
-  # E.g. coordinating, subordinating, correlative...
+  # Returns all types of conjunctions and does not discriminate
+  # between the various kinds. E.g. coordinating, subordinating,
+  # correlative...
+  #
+  # @param tagged [String] the tagged text
+  # @return [Hash] the hash of matches
+  #
   def get_conjunctions(tagged)
     return nil unless valid_text(tagged)
     tags = [CC, IN]
@@ -396,7 +486,11 @@ class EngTagger
   end
 
   # Given a POS-tagged text, this method returns only the maximal noun phrases.
-  # May be called directly, but is also used by get_noun_phrases
+  # May be called directly, but is also used by `get_noun_phrases`.
+  #
+  # @param tagged [String] the tagged text
+  # @return [Hash] the hash of matches
+  #
   def get_max_noun_phrases(tagged)
     return nil unless valid_text(tagged)
     tags = [@@mnp]
@@ -410,6 +504,10 @@ class EngTagger
   end
 
   # Similar to get_words, but requires a POS-tagged text as an argument.
+  #
+  # @param tagged [String] the tagged text
+  # @return [Hash] the hash of matches
+  #
   def get_noun_phrases(tagged)
     return nil unless valid_text(tagged)
     found = Hash.new(0)
@@ -470,7 +568,7 @@ class EngTagger
   # Private methods #
   ###################
 
-  :private
+  private
 
   def build_trimmed(tagged, tags)
     tags.map { |tag| tagged.scan(tag) }.flatten.map do |n|
@@ -585,7 +683,8 @@ class EngTagger
     end
     words = Array.new
     tokenized.each_with_index do |t, i|
-      if tokenized[i + 1] and tokenized [i + 1] =~ /[A-Z\W]/ and tokenized[i] =~ /\A(.+)\.\z/
+      if tokenized[i + 1] and tokenized [i + 1] =~ /[A-Z\W]/ and
+          tokenized[i] =~ /\A(.+)\.\z/
         w = $1
         # Don't separate the period off words that
         # meet any of the following conditions:
@@ -593,7 +692,8 @@ class EngTagger
         # 1. It is defined in one of the lists above
         # 2. It is only one letter long: Alfred E. Sloan
         # 3. It has a repeating letter-dot: U.S.A. or J.C. Penney
-        unless abbr[w.downcase] or w =~ /\A[a-z]\z/i or w =~ /[a-z](?:\.[a-z])+\z/i
+        unless abbr[w.downcase] or
+            [/\A[a-z]\z/i, /[a-z](?:\.[a-z])+\z/i].any? { |r| r.match? w }
           words <<  w
           words << '.'
           next
@@ -704,8 +804,7 @@ class EngTagger
   def classify_unknown_word(word)
     if /[\(\{\[]/ =~ word  # Left brackets
       classified = "*LRB*"
-    elsif
-      /[\)\}\]]/ =~ word   # Right brackets
+    elsif /[\)\}\]]/ =~ word   # Right brackets
       classified = "*RRB*"
     elsif /-?(?:\d+(?:\.\d*)?|\.\d+)\z/ =~ word # Floating point number
       classified = "*NUM*"
