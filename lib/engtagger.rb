@@ -276,10 +276,9 @@ class EngTagger
   def get_readable(text, verbose = false)
     return nil unless valid_text(text)
     tagged = add_tags(text, verbose)
-    tagged = tagged.gsub(/<\w+>([^<]+)<\/(\w+)>/o) do
+    tagged = tagged.gsub(/<\w+>([^<]+|[<\w>]+)<\/(\w+)>/o) do
       $1 + '/' + $2.upcase
     end
-    return tagged
   end
 
   # Return an array of sentences (without POS tags) from a text.
