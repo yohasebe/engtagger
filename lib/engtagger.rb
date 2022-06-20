@@ -568,9 +568,7 @@ class EngTagger
   # Private methods #
   ###################
 
-  # private
-  
-  # private keyword above is commented out so that the test passes
+  private
 
   def build_trimmed(tagged, tags)
     tags.map { |tag| tagged.scan(tag) }.flatten.map do |n|
@@ -923,7 +921,7 @@ class EngTagger
       end
     EOF
   end
-  
+
   #memoize the stem and assign_tag methods
   memoize("stem")
   memoize("assign_tag")
