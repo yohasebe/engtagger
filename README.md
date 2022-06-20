@@ -139,7 +139,7 @@ of this Ruby library
 
 * Carlos Ramirez III
 * Phil London
-* Bazay (Baron Bloomer)
+* [bazay](https://github.com/bazay) (Baron Bloomer)
 
 ### Acknowledgement
 
