@@ -362,6 +362,7 @@ class EngTagger
   # @param tagged [String] the tagged text
   # @return [Hash] the hash of matches
   #
+
   def get_infinitive_verbs(tagged)
     return nil unless valid_text(tagged)
     tags = [VB]
