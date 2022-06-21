@@ -12,7 +12,7 @@ module Stemmable
     'ousness'=>'ous', 'aliti'=>'al',
     'iviti'=>'ive', 'biliti'=>'ble', 'logi'=>'log'
   }
-  
+
   STEP_3_LIST = {
     'icate'=>'ic', 'ative'=>'', 'alize'=>'al', 'iciti'=>'ic',
     'ical'=>'ic', 'ful'=>'', 'ness'=>''
@@ -48,7 +48,7 @@ module Stemmable
                       ance     |
                       ence     |
                       er       |
-                      ic       | 
+                      ic       |
                       able     |
                       ible     |
                       ant      |
@@ -88,30 +88,30 @@ module Stemmable
   #
   # Send comments to raypereda@hotmail.com
   #
-  
+
   def stem_porter
 
     # make a copy of the given object and convert it to a string.
     w = self.dup.to_str
-    
+
     return w if w.length < 3
-    
+
     # now map initial y to Y so that the patterns never treat it as vowel
     w[0] = 'Y' if w[0] == ?y
-    
+
     # Step 1a
     if w =~ /(ss|i)es$/
       w = $` + $1
-    elsif w =~ /([^s])s$/ 
+    elsif w =~ /([^s])s$/
       w = $` + $1
     end
 
     # Step 1b
     if w =~ /eed$/
-      w.chop! if $` =~ MGR0 
+      w.chop! if $` =~ MGR0
     elsif w =~ /(ed|ing)$/
       stem = $`
-      if stem =~ VOWEL_IN_STEM 
+      if stem =~ VOWEL_IN_STEM
         w = stem
 	case w
         when /(at|bl|iz)$/             then w << "e"
@@ -121,9 +121,9 @@ module Stemmable
       end
     end
 
-    if w =~ /y$/ 
+    if w =~ /y$/
       stem = $`
-      w = stem + "i" if stem =~ VOWEL_IN_STEM 
+      w = stem + "i" if stem =~ VOWEL_IN_STEM
     end
 
     # Step 2
@@ -159,7 +159,7 @@ module Stemmable
     end
 
     #  Step 5
-    if w =~ /e$/ 
+    if w =~ /e$/
       stem = $`
       if (stem =~ MGR1) ||
           (stem =~ MEQ1 && stem !~ /^#{CC}#{V}[^aeiouwxy]$/o)
