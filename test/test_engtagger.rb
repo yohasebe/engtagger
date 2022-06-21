@@ -56,8 +56,8 @@ EOD
   end
 
   def test_clean_text
-    test = "I am 100% sure that Dr. Watson is too naive. I'm sorry."
-    model = ["I","am","100","%","sure","that","Dr.","Watson","is","too","naive",".","I","'m","sorry","."]
+    test = "I am 100.0% sure that Dr. Watson is too naive. I'm sorry."
+    model = ["I","am","100.0","%","sure","that","Dr.","Watson","is","too","naive",".","I","'m","sorry","."]
     assert_equal(model, @tagger.send(:clean_text, test))
   end
 
