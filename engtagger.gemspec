@@ -14,4 +14,6 @@ Gem::Specification.new do |gem|
   gem.name          = "engtagger"
   gem.require_paths = ["lib"]
   gem.version       = EngTagger::VERSION
+
+  gem.add_runtime_dependency 'lru_redux'
 end
