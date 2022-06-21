@@ -21,7 +21,6 @@ of regular expressions.
 
 ### Synopsis:
 
-    require 'rubygems'
     require 'engtagger'
 
     # Create a parser object
