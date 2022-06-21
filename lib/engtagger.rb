@@ -3,23 +3,30 @@
 
 $LOAD_PATH << File.join(File.dirname(__FILE__), 'engtagger')
 require 'rubygems'
-require 'kconv'
 require 'porter'
+require 'lru_redux'
 
-# use hpricot for extracting English text from docs with XML like tags
-begin
-  require 'hpricot'
-rescue LoadError
-  $no_hpricot = true
+module BoundedSpaceMemoizable
+  def memoize(method, max_cache_size=100000)
+    # alias_method is faster than define_method + old.bind(self).call
+    alias_method "__memoized__#{method}", method
+    module_eval <<-EOF
+      def #{method}(*a)
+        @__memoized_#{method}_cache ||= LruRedux::Cache.new(#{max_cache_size})
+        @__memoized_#{method}_cache[a] ||= __memoized__#{method}(*a)
+      end
+    EOF
+  end
 end
-
-# File paths
-$lexpath   = File.join(File.dirname(__FILE__), 'engtagger')
-$word_path = File.join($lexpath, "pos_words.hash")
-$tag_path  = File.join($lexpath, "pos_tags.hash")
 
 # English part-of-speech tagger class
 class EngTagger
+  extend BoundedSpaceMemoizable
+
+  # File paths
+  DEFAULT_LEXPATH = File.join(File.dirname(__FILE__), 'engtagger')
+  DEFAULT_WORDPATH = File.join(DEFAULT_LEXPATH, "pos_words.hash")
+  DEFAULT_TAGPATH = File.join(DEFAULT_LEXPATH, "pos_tags.hash")
 
   #################
   # Class methods #
@@ -140,7 +147,7 @@ class EngTagger
     "PPS",  "Punctuation, colon, semicolon, elipsis",
     "LRB",  "Punctuation, left bracket",
     "RRB",  "Punctuation, right bracket"
-    ]
+  ]
   tags = tags.collect{|t| t.downcase.gsub(/[\.\,\'\-\s]+/, '_')}
   tags = tags.collect{|t| t.gsub(/\&/, "and").gsub(/\//, "or")}
   TAGS = Hash[*tags]
@@ -193,12 +200,12 @@ class EngTagger
     @conf[:tag_lex] = 'tags.yml'
     @conf[:word_lex] = 'words.yml'
     @conf[:unknown_lex] = 'unknown.yml'
-    @conf[:word_path] = $word_path
-    @conf[:tag_path] = $tag_path
+    @conf[:word_path] = DEFAULT_WORDPATH
+    @conf[:tag_path] = DEFAULT_TAGPATH
     @conf[:debug] = false
     # assuming that we start analyzing from the beginninga new sentence...
     @conf[:current_tag] = 'pp'
-    @conf.merge!(params)
+    @conf.merge!(params) if params
     unless File.exist?(@conf[:word_path]) and File.exist?(@conf[:tag_path])
       print "Couldn't locate POS lexicon, creating a new one" if @conf[:debug]
       @@hmm = Hash.new
@@ -245,13 +252,21 @@ class EngTagger
   # @param verbose [false, true] whether to use verbose tags
   # @return [String] the marked-up string
   #
+  # Examine the string provided and return it fully tagged in XML style
   def add_tags(text, verbose = false)
     return nil unless valid_text(text)
-
-    tag_pairs(text).map do |word, tag|
-      tag = EngTagger.explain_tag(tag.to_s) if verbose
-      "<#{tag}>#{word}</#{tag}>"
-    end.join ' '
+    tagged = []
+    words = clean_text(text)
+    tags = Array.new
+    words.each do |word|
+      cleaned_word = clean_word(word)
+      tag = assign_tag(@conf[:current_tag], cleaned_word)
+      @conf[:current_tag] = tag = (tag and tag != "") ? tag : 'nn'
+      tag = EngTagger.explain_tag(tag) if verbose
+      tagged << '<' + tag + '>' + word + '</' + tag + '>'
+    end
+    reset
+    return tagged.join(' ')
   end
 
   # Given a text string, return as many nouns and noun phrases as possible.
@@ -277,6 +292,7 @@ class EngTagger
     return nil unless valid_text(text)
     tagged = add_tags(text, verbose)
     tagged = tagged.gsub(/<\w+>([^<]+|[<\w>]+)<\/(\w+)>/o) do
+    #!!!# tagged = tagged.gsub(/<\w+>([^<]+)<\/(\w+)>/o) do
       $1 + '/' + $2.upcase
     end
   end
@@ -512,7 +528,7 @@ class EngTagger
     return nil unless valid_text(tagged)
     found = Hash.new(0)
     phrase_ext = /(?:#{PREP}|#{DET}|#{NUM})+/xo
-    scanned = tagged.scan(@@mnp)
+      scanned = tagged.scan(@@mnp)
     # Find MNPs in the text, one sentence at a time
     # Record and split if the phrase is extended by a (?:PREP|DET|NUM)
     mn_phrases = []
@@ -521,9 +537,9 @@ class EngTagger
       mn_phrases += m.split(phrase_ext)
     end
     mn_phrases.each do |mnp|
-     # Split the phrase into an array of words, and create a loop for each word,
-     # shortening the phrase by removing the word in the first position.
-     # Record the phrase and any single nouns that are found
+      # Split the phrase into an array of words, and create a loop for each word,
+      # shortening the phrase by removing the word in the first position.
+      # Record the phrase and any single nouns that are found
       words = mnp.split
       words.length.times do |i|
         found[words.join(' ')] += 1 if words.length > 1
@@ -638,17 +654,10 @@ class EngTagger
     end
   end
 
-  # Strip the provided text of HTML-style tags and separate off any punctuation
-  # in preparation for tagging
+  # Strip the provided text and separate off any punctuation in preparation for tagging
   def clean_text(text)
     return false unless valid_text(text)
-    text = text.toutf8
-    unless $no_hpricot
-      # Strip out any markup and convert entities to their proper form
-      cleaned_text = Hpricot(text).inner_text
-    else
-      cleaned_text = text
-    end
+    cleaned_text = text.encode('utf-8')
     tokenized = []
     # Tokenize the text (splitting on punctuation as you go)
     cleaned_text.split(/\s+/).each do |line|
@@ -848,28 +857,28 @@ class EngTagger
   # from a POS-tagged text.
   def get_max_noun_regex
     regex = /
-      # optional number, gerund - adjective -participle
-      (?:#{NUM})?(?:#{GER}|#{ADJ}|#{PART})*
-        # Followed by one or more nouns
-        (?:#{NN})+
-          (?:
-            # Optional preposition, determinant, cardinal
-            (?:#{PREP})*(?:#{DET})?(?:#{NUM})?
-              # Optional gerund-adjective -participle
-              (?:#{GER}|#{ADJ}|#{PART})*
-                # one or more nouns
-                (?:#{NN})+
-           )*
-    /xo #/
-    return regex
+    # optional number, gerund - adjective -participle
+    (?:#{NUM})?(?:#{GER}|#{ADJ}|#{PART})*
+      # Followed by one or more nouns
+      (?:#{NN})+
+      (?:
+       # Optional preposition, determinant, cardinal
+       (?:#{PREP})*(?:#{DET})?(?:#{NUM})?
+       # Optional gerund-adjective -participle
+       (?:#{GER}|#{ADJ}|#{PART})*
+       # one or more nouns
+       (?:#{NN})+
+      )*
+      /xo #/
+      return regex
   end
 
   # Load the 2-grams into a hash from YAML data: This is a naive (but fast)
   # YAML data parser. It will load a YAML document with a collection of key:
   # value entries ( {pos tag}: {probability} ) mapped onto single keys ( {tag} ).
   # Each map is expected to be on a single line; i.e., det: { jj: 0.2, nn: 0.5, vb: 0.0002 }
-  def load_tags(lexicon)
-    path = File.join($lexpath, lexicon)
+  def load_tags(lexicon, lexpath = DEFAULT_LEXPATH)
+    path = File.join(lexpath, lexicon)
     fh = File.open(path, 'r')
     while line = fh.gets
       /\A"?([^{"]+)"?: \{ (.*) \}/ =~ line
@@ -891,8 +900,8 @@ class EngTagger
   # YAML data parser. It will load a YAML document with a collection of key:
   # value entries ( {pos tag}: {count} ) mapped onto single keys ( {a word} ).
   # Each map is expected to be on a single line; i.e., key: { jj: 103, nn: 34, vb: 1 }
-  def load_words(lexicon)
-    path = File.join($lexpath, lexicon)
+  def load_words(lexicon, lexpath = DEFAULT_LEXPATH)
+    path = File.join(lexpath, lexicon)
     fh = File.open(path, 'r')
     while line = fh.gets
       /\A"?([^{"]+)"?: \{ (.*) \}/ =~ line
@@ -908,18 +917,6 @@ class EngTagger
       @@lexicon[key] = pairs
     end
     fh.close
-  end
-
-  # for memoization (code snipet from http://eigenclass.org/hiki/bounded-space-memoization)
-  def self.memoize(method)
-    # alias_method is faster than define_method + old.bind(self).call
-    alias_method "__memoized__#{method}", method
-    module_eval <<-EOF
-      def #{method}(*a, &b)
-        # assumes the block won't change the result if the args are the same
-        (@__memoized_#{method}_cache ||= {})[a] ||= __memoized__#{method}(*a, &b)
-      end
-    EOF
   end
 
   #memoize the stem and assign_tag methods

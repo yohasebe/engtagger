@@ -56,9 +56,9 @@ EOD
   end
 
   def test_clean_text
-    test = "<html><body>I am <b>100% sure</b> that Dr. Watson is too naive. I'm sorry.</body></html>"
+    test = "I am 100% sure that Dr. Watson is too naive. I'm sorry."
     model = ["I","am","100","%","sure","that","Dr.","Watson","is","too","naive",".","I","'m","sorry","."]
-    assert_equal(model, @tagger.clean_text(test)) unless $no_hpricot
+    assert_equal(model, @tagger.send(:clean_text, test))
   end
 
   def test_get_noun_phrases
