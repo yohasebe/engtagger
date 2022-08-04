@@ -1,9 +1,8 @@
 #!/usr/bin/env ruby
 # -*- coding: utf-8 -*-
 
-$LOAD_PATH << File.join(File.dirname(__FILE__), 'engtagger')
 require 'rubygems'
-require 'porter'
+require 'engtagger/porter'
 require 'lru_redux'
 
 module BoundedSpaceMemoizable
