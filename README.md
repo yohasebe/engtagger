@@ -19,7 +19,7 @@ of regular expressions.
 * Extract noun phrases from tagged text
 * etc.
 
-### Synopsis:
+### Synopsis
 
 ```ruby
 require 'engtagger'
