@@ -1,3 +1,7 @@
-source 'https://rubygems.org'
+# frozen_string_literal: true
 
-gem 'lru_redux'
+source "https://rubygems.org"
+
+gemspec
+
+gem "lru_redux"
