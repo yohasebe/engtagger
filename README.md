@@ -19,56 +19,58 @@ of regular expressions.
 * Extract noun phrases from tagged text
 * etc.
 
-### Synopsis:
+### Synopsis
 
-    require 'engtagger'
+```ruby
+require 'engtagger'
 
-    # Create a parser object
-    tgr = EngTagger.new
+# Create a parser object
+tgr = EngTagger.new
 
-    # Sample text
-    text = "Alice chased the big fat cat."
+# Sample text
+text = "Alice chased the big fat cat."
 
-    # Add part-of-speech tags to text
-    tagged = tgr.add_tags(text)
+# Add part-of-speech tags to text
+tagged = tgr.add_tags(text)
 
-    #=> "<nnp>Alice</nnp> <vbd>chased</vbd> <det>the</det> <jj>big</jj> <jj>fat</jj><nn>cat</nn> <pp>.</pp>"
+#=> "<nnp>Alice</nnp> <vbd>chased</vbd> <det>the</det> <jj>big</jj> <jj>fat</jj><nn>cat</nn> <pp>.</pp>"
 
-    # Get a list of all nouns and noun phrases with occurrence counts
-    word_list = tgr.get_words(text)
+# Get a list of all nouns and noun phrases with occurrence counts
+word_list = tgr.get_words(text)
 
-    #=> {"Alice"=>1, "cat"=>1, "fat cat"=>1, "big fat cat"=>1}
+#=> {"Alice"=>1, "cat"=>1, "fat cat"=>1, "big fat cat"=>1}
 
-    # Get a readable version of the tagged text
-    readable = tgr.get_readable(text)
+# Get a readable version of the tagged text
+readable = tgr.get_readable(text)
 
-    #=> "Alice/NNP chased/VBD the/DET big/JJ fat/JJ cat/NN ./PP"
+#=> "Alice/NNP chased/VBD the/DET big/JJ fat/JJ cat/NN ./PP"
 
-    # Get all nouns from a tagged output
-    nouns = tgr.get_nouns(tagged)
+# Get all nouns from a tagged output
+nouns = tgr.get_nouns(tagged)
 
-    #=> {"cat"=>1, "Alice"=>1}
+#=> {"cat"=>1, "Alice"=>1}
 
-    # Get all proper nouns
-    proper = tgr.get_proper_nouns(tagged)
+# Get all proper nouns
+proper = tgr.get_proper_nouns(tagged)
 
-    #=> {"Alice"=>1}
+#=> {"Alice"=>1}
 
-    # Get all past tense verbs
-    pt_verbs = tgr.get_past_tense_verbs(tagged)
+# Get all past tense verbs
+pt_verbs = tgr.get_past_tense_verbs(tagged)
 
-    #=> {"chased"=>1}
+#=> {"chased"=>1}
 
-    # Get all the adjectives
-    adj = tgr.get_adjectives(tagged)
+# Get all the adjectives
+adj = tgr.get_adjectives(tagged)
 
-    #=> {"big"=>1, "fat"=>1}
+#=> {"big"=>1, "fat"=>1}
 
-    # Get all noun phrases of any syntactic level
-    # (same as word_list but take a tagged input)
-    nps = tgr.get_noun_phrases(tagged)
+# Get all noun phrases of any syntactic level
+# (same as word_list but take a tagged input)
+nps = tgr.get_noun_phrases(tagged)
 
-    #=> {"Alice"=>1, "cat"=>1, "fat cat"=>1, "big fat cat"=>1}
+#=> {"Alice"=>1, "cat"=>1, "fat cat"=>1, "big fat cat"=>1}
+```
 
 ### Tag Set
 
