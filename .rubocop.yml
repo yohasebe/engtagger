@@ -18,9 +18,6 @@ Naming/FileName:
 Security/MarshalLoad:
   Enabled: false
 
-Layout/EndOfLine:
-   Enabled: False
-
 Style/ClassVars:
   Enabled: false
 

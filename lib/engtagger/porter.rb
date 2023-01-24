@@ -39,7 +39,6 @@ module Stemmable
                     biliti   |
                     logi)$/x.freeze
 
-
   SUFFIX_2_REGEXP = /(
                       al       |
                       ance     |
