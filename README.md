@@ -2,7 +2,7 @@
 
 English Part-of-Speech Tagger Library; a Ruby port of Lingua::EN::Tagger
 
-### Description
+## Description
 
 A Ruby port of Perl Lingua::EN::Tagger, a probability based, corpus-trained
 tagger that assigns POS tags to English text based on a lookup dictionary and
@@ -13,13 +13,13 @@ word morphology or can be set to be treated as nouns or other parts of speech.
 The tagger also extracts as many nouns and noun phrases as it can, using a set
 of regular expressions.
 
-### Features
+## Features
 
 * Assigns POS tags to English text
 * Extract noun phrases from tagged text
 * etc.
 
-### Synopsis
+## Synopsis
 
 ```ruby
 require 'engtagger'
@@ -72,7 +72,7 @@ nps = tgr.get_noun_phrases(tagged)
 #=> {"Alice"=>1, "cat"=>1, "fat cat"=>1, "big fat cat"=>1}
 ```
 
-### Tag Set
+## Tag Set
 
 The set of POS tags used here is a modified version of the Penn Treebank tagset. Tags with non-letter characters have been redefined to work better in our data structures. Also, the "Determiner" tag (DET) has been changed from 'DT', in order to avoid confusion with the HTML tag, `<DT>`.
 
@@ -122,26 +122,56 @@ The set of POS tags used here is a modified version of the Penn Treebank tagset.
     LRB     Punctuation, left bracket               (, {, [
     RRB     Punctuation, right bracket              ), }, ]
 
-### Install
+## Installation
 
-    gem install engtagger
+**Recommended Approach (without sudo):**
 
-### Author
+It is recommended to install the `engtagger` gem within your user environment without root privileges. This ensures proper file permissions and avoids potential issues. You can achieve this by using Ruby version managers like `rbenv` or `rvm` to manage your Ruby versions and gemsets.
 
-of this Ruby library
+To install without `sudo`, simply run:
 
-* Yoichiro Hasebe (yohasebe [at] gmail.com)
+```bash
+gem install engtagger
+```
 
-### Contributors
+**Alternative Approach (with sudo):**
+
+If you must use `sudo` for installation, you'll need to adjust file permissions afterward to ensure accessibility.
+
+1. Install the gem with `sudo`:
+
+```bash
+sudo gem install engtagger
+```
+
+2. Grant necessary permissions to your user:
+
+```bash
+sudo chown -R $(whoami) /Library/Ruby/Gems/2.6.0/gems/engtagger-0.4.1
+```
+
+**Note:** The path above assumes you are using Ruby version 2.6.0.  If you are using a different version, you will need to modify the path accordingly.  You can find your Ruby version by running `ruby -v`. 
+
+## Troubleshooting
+
+**Permission Issues:**
+
+If you encounter "cannot load such file" errors after installation, it might be due to incorrect file permissions. Ensure you've followed the instructions for adjusting permissions if you used `sudo` during installation.
+
+## Author
+
+Yoichiro Hasebe (yohasebe [at] gmail.com)
+
+## Contributors
 
 Many thanks to the collaborators listed in the right column of this GitHub page.
 
-### Acknowledgement
+## Acknowledgement
 
 This Ruby library is a direct port of Lingua::EN::Tagger available at CPAN.
 The credit for the crucial part of its algorithm/design therefore goes to
 Aaron Coburn, the author of the original Perl version.
 
-### License
+## License
 
 This library is distributed under the GPL.  Please see the LICENSE file.

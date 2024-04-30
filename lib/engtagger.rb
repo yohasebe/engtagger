@@ -4,7 +4,7 @@
 
 require "rubygems"
 require "lru_redux"
-require_relative "engtagger/porter"
+require_relative "./engtagger/porter"
 
 module BoundedSpaceMemoizable
   def memoize(method, max_cache_size = 100_000)
