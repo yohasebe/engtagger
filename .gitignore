@@ -16,6 +16,3 @@ test/tmp
 test/version_tmp
 tmp
 /.idea
-.rubocop.yml
-.solargraph.yml
-.yardopts
