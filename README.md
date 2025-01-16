@@ -147,7 +147,7 @@ sudo gem install engtagger
 2. Grant necessary permissions to your user:
 
 ```bash
-sudo chown -R $(whoami) /Library/Ruby/Gems/2.6.0/gems/engtagger-0.4.1
+sudo chown -R $(whoami) /Library/Ruby/Gems/2.6.0/gems/engtagger-0.4.2
 ```
 
 **Note:** The path above assumes you are using Ruby version 2.6.0.  If you are using a different version, you will need to modify the path accordingly.  You can find your Ruby version by running `ruby -v`. 
