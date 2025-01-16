@@ -12,7 +12,7 @@ module BoundedSpaceMemoizable
     alias_method "__memoized__#{method}", method
     module_eval <<-MODEV
       def #{method}(*a)
-        @__memoized_#{method}_cache ||= LruRedux::Cache.new(#{max_cache_size})
+        @__memoized_#{method}_cache ||= LruRedux::Cache.new(#{max_cache_size}, true)
         @__memoized_#{method}_cache[a] ||= __memoized__#{method}(*a)
       end
     MODEV
