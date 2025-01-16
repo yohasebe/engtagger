@@ -4,4 +4,4 @@ source "https://rubygems.org"
 
 gemspec
 
-gem "lru_redux"
+gem "sin_lru_redux"

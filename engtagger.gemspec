@@ -18,5 +18,5 @@ Gem::Specification.new do |gem|
   gem.name          = "engtagger"
   gem.require_paths = ["lib"]
   gem.version       = EngTagger::VERSION
-  gem.add_dependency "lru_redux"
+  gem.add_dependency "sin_lru_redux"
 end
