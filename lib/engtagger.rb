@@ -128,7 +128,7 @@ class EngTagger
     "UH",   "Interjection",
     "VB",   "Verb, infinitive",
     "VBD",  "Verb, past tense",
-    "VBG",  "Verb, gerund",
+    "VBG",  "Verb, gerund or present participle",
     "VBN",  "Verb, past/passive participle",
     "VBP",  "Verb, base present form",
     "VBZ",  "Verb, present 3SG -s form",

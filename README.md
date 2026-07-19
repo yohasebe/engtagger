@@ -104,7 +104,7 @@ The set of POS tags used here is a modified version of the Penn Treebank tagset.
     UH      Interjection                            oh, yes, mmm
     VB      Verb, infinitive                        take, live
     VBD     Verb, past tense                        took, lived
-    VBG     Verb, gerund                            taking, living
+    VBG     Verb, gerund or present participle      taking, living
     VBN     Verb, past/passive participle           taken, lived
     VBP     Verb, base present form                 take, live
     VBZ     Verb, present 3SG -s form               takes, lives
