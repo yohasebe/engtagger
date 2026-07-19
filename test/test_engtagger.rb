@@ -2,6 +2,7 @@
 
 ENGTAGGER_LIB = File.join(__dir__, "..", "lib")
 
+require "stringio"
 require "test/unit"
 require_relative "../lib/engtagger"
 
@@ -262,6 +263,21 @@ class TestEngTagger < Test::Unit::TestCase
     assert(@tagger.send(:valid_text, text))
     text = ""
     assert(!@tagger.send(:valid_text, text))
+  end
+
+  def test_valid_text_debug_message
+    old_debug = @tagger.conf[:debug]
+    @tagger.conf[:debug] = true
+    out = StringIO.new
+    orig_stdout = $stdout
+    $stdout = out
+    begin
+      assert(!@tagger.send(:valid_text, nil))
+    ensure
+      $stdout = orig_stdout
+      @tagger.conf[:debug] = old_debug
+    end
+    assert_match(/uninitialized variable/, out.string)
   end
 
   def test_override_default_params

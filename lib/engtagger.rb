@@ -645,7 +645,7 @@ class EngTagger
   def valid_text(text)
     if !text
       # there's nothing to parse
-      "method call on uninitialized variable" if @conf[:debug]
+      puts "method call on uninitialized variable" if @conf[:debug]
       false
     elsif /\A\s*\z/ =~ text
       # text is an empty string, nothing to parse
@@ -839,7 +839,7 @@ class EngTagger
     when /\w-\w/o # Hyphenated word
       /-([^-]+)\z/ =~ word
       h_suffix = $1
-      if h_suffix && (@@lexicon[h_suffix] && @@lexicon[h_suffix]["jj"])
+      if h_suffix && @@lexicon[h_suffix] && @@lexicon[h_suffix]["jj"]
         # last part of this is defined as an adjective
         "-hyp-adj-"
       else
