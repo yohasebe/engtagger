@@ -1,10 +1,8 @@
-#!/usr/bin/env ruby
-
 # frozen_string_literal: true
 
-require "rubygems"
 require "lru_redux"
-require_relative "./engtagger/porter"
+require_relative "engtagger/version"
+require_relative "engtagger/porter"
 
 module BoundedSpaceMemoizable
   def memoize(method, max_cache_size = 100_000)
@@ -52,7 +50,7 @@ class EngTagger
   def self.get_ext(tag = nil)
     return nil unless tag
 
-    Regexp.new("<#{tag}>[^<]+</#{tag}>\s*")
+    Regexp.new("<#{tag}>[^<]+</#{tag}>\\s*")
   end
 
   # Regexps to match XML-style part-of-speech tags
@@ -66,7 +64,7 @@ class EngTagger
   PAREN = get_ext("[lr]rb")
   QUOT  = get_ext("ppr")
   SEN   = get_ext("pp")
-  WORD  = get_ext("\w+")
+  WORD  = get_ext("\\w+")
   VB    = get_ext("vb")
   VBG   = get_ext("vbg")
   VBD   = get_ext("vbd")
@@ -97,7 +95,7 @@ class EngTagger
     TAGS[tag] || tag
   end
 
-  # The folloging is to make a hash to convert a pos tag to its definition
+  # The following is to make a hash to convert a pos tag to its definition
   # used by the explain_tag method
   tags = [
     "CC",   "Conjunction, coordinating",
@@ -157,7 +155,7 @@ class EngTagger
   #    => (Boolean) Stem single words using Porter module
   # * :weight_noun_phrases
   #    => (Boolean) When returning occurrence counts for a noun phrase, multiply
-  #        the valuethe number of words in the NP.
+  #        the value by the number of words in the NP.
   # * :longest_noun_phrase
   #    => (Integer) Will ignore noun phrases longer than this threshold. This
   #        affects only the get_words() and get_nouns() methods.
@@ -200,7 +198,7 @@ class EngTagger
     @conf[:word_path] = DEFAULT_WORDPATH
     @conf[:tag_path] = DEFAULT_TAGPATH
     @conf[:debug] = false
-    # assuming that we start analyzing from the beginninga new sentence...
+    # assuming that we start analyzing from the beginning of a new sentence...
     @conf[:current_tag] = "pp"
     @conf.merge!(params) if params
     if !File.exist?(@conf[:word_path]) || !File.exist?(@conf[:tag_path])
@@ -208,10 +206,10 @@ class EngTagger
       @@hmm = {}
       @@lexicon = {}
     else
-      lexf = File.open(@conf[:word_path], "r")
+      lexf = File.open(@conf[:word_path], "rb")
       @@lexicon = Marshal.load(lexf)
       lexf.close
-      hmmf = File.open(@conf[:tag_path], "r")
+      hmmf = File.open(@conf[:tag_path], "rb")
       @@hmm = Marshal.load(hmmf)
       hmmf.close
     end
@@ -304,12 +302,16 @@ class EngTagger
     tagged.split(%r{</pp>}).each do |line|
       sentences << strip_tags(line)
     end
-    sentences = sentences.map do |sentence|
-      sentence.gsub(Regexp.new(" ('s?) ")) { $1 + " " }
-      sentence.gsub(Regexp.new(" (\W+) ")) { $1 + " " }
-      sentence.gsub(Regexp.new(" (`+) ")) { " " + $1 }
-      sentence.gsub(Regexp.new(" (\W+)$")) { $1 }
-      sentence.gsub(Regexp.new("^(`+) ")) { $1 }
+    sentences.map do |sentence|
+      # Reattach punctuation to the neighboring word: opening quotes/brackets
+      # and currency signs join the following word, everything else (commas,
+      # closing marks, possessives) joins the preceding word. (These gsub
+      # results used to be discarded, so none of this cleanup was applied.)
+      sentence.gsub(/ ('s?) /) { "#{$1} " }
+              .gsub(/ ([`(\[{$]+) /) { " #{$1}" }
+              .gsub(/ ([^\w\s`(\[{$]+) /) { "#{$1} " }
+              .gsub(/ ([^\w\s]+)\z/) { $1 }
+              .gsub(/\A([`(\[{$]+) /) { $1 }
     end
   end
 
@@ -360,7 +362,7 @@ class EngTagger
     build_matches_hash(build_trimmed(tagged, tags))
   end
 
-  # Returns all types of verbs and does not descriminate between the
+  # Returns all types of verbs and does not discriminate between the
   # various kinds. Combines all other verb methods listed in this
   # class.
   #
@@ -588,10 +590,10 @@ class EngTagger
     load_tags(@conf[:tag_lex])
     load_words(@conf[:word_lex])
     load_words(@conf[:unknown_lex])
-    File.open(@conf[:word_path], "w") do |f|
+    File.open(@conf[:word_path], "wb") do |f|
       Marshal.dump(@@lexicon, f)
     end
-    File.open(@conf[:tag_path], "w") do |f|
+    File.open(@conf[:tag_path], "wb") do |f|
       Marshal.dump(@@hmm, f)
     end
   end
@@ -635,7 +637,7 @@ class EngTagger
     @conf[:stem] ? word.stem : word
   end
 
-  # This method will reset the preceeding tag to a sentence ender (PP).
+  # This method will reset the preceding tag to a sentence ender (PP).
   # This prepares the first word of a new sentence to be tagged correctly.
   def reset
     @conf[:current_tag] = "pp"
@@ -705,7 +707,7 @@ class EngTagger
     end
     words = []
     tokenized.each_with_index do |_, i|
-      if tokenized[i + 1] && tokenized [i + 1] =~ /[A-Z\W]/ && tokenized[i] =~ /\A(.+)\.\z/
+      if tokenized[i + 1] && tokenized[i + 1] =~ /[A-Z\W]/ && tokenized[i] =~ /\A(.+)\.\z/
         w = $1
         # Don't separate the period off words that
         # meet any of the following conditions:
@@ -772,13 +774,13 @@ class EngTagger
       return "sym"
     end
     best_so_far = 0
-    w = @@lexicon[word]
+    w = @@lexicon[word] || {}
     t = @@hmm
 
     # TAG THE TEXT: What follows is a modified version of the Viterbi algorithm
     # which is used in most POS taggers
     best_tag = ""
-    t[prev_tag].each_key do |tag|
+    (t[prev_tag] || {}).each_key do |tag|
       # With @config[:relax] set, this method
       # will also include any `open classes' of POS tags
       pw = 0

@@ -1,0 +1,4 @@
+# Packaging reads the working tree (gemspec uses `git ls-files`), so a
+# checkout that rewrites line endings would ship a corrupted model or lexicon.
+*.etm.gz binary
+*.hash binary

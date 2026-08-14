@@ -18,14 +18,18 @@ class TestEngTagger < Test::Unit::TestCase
   # Testing class methods
   def setup
     @tagger = EngTagger.new
-    tagpath = File.join(ENGTAGGER_LIB, @tagger.conf[:tag_path])
-    wordpath = File.join(ENGTAGGER_LIB, @tagger.conf[:word_path])
+    # conf paths are already absolute; joining them onto ENGTAGGER_LIB used to
+    # produce a nonexistent path, silently re-running install (and rewriting
+    # the shipped .hash files) on every single test.
+    tagpath = @tagger.conf[:tag_path]
+    wordpath = @tagger.conf[:word_path]
     @tagger.install if !File.exist?(tagpath) || !File.exist?(wordpath)
   end
 
-  def text_get_ext
-    model = '<cd>[^<]+</cd}>\s*'
-    assert_equal(model, EngTagger.get_ext(model, "cd"))
+  def test_get_ext
+    assert_nil(EngTagger.get_ext(nil))
+    assert_equal(Regexp.new("<cd>[^<]+</cd>\\s*"), EngTagger.get_ext("cd"))
+    assert_match(EngTagger.get_ext("cd"), "<cd>42</cd> ")
   end
 
   def test_explain_tag

@@ -17,3 +17,5 @@ test/version_tmp
 tmp
 /.idea
 experiments/
+
+.DS_Store

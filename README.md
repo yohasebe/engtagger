@@ -174,4 +174,8 @@ Aaron Coburn, the author of the original Perl version.
 
 ## License
 
-This library is distributed under the GPL.  Please see the LICENSE file.
+This library is distributed under the GPL (GPL-2.0-or-later).  Please see the LICENSE file.
+
+The 0.4 line ships probability tables derived from the Penn Treebank. Version
+2.0 drops them in favour of a model trained on openly licensed corpora; if the
+provenance of the bundled data matters for your use, prefer 2.x.
