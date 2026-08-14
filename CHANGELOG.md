@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.5 (2026-08-14)
+
+License metadata correction; no code changes. This library is a port (2009) of
+Perl Lingua::EN::Tagger, which has been licensed GPL-3.0-only since its
+version 0.14 (2008). As a derivative work EngTagger is therefore GPL-3.0-only:
+the bundled LICENSE is now the GPLv3 text and the gemspec declares
+`GPL-3.0-only`. Earlier releases carried a GPLv2 license text, and 0.4.4
+declared `GPL-2.0-or-later`; both were inaccurate.
+
 ## 0.4.4 (2026-08-14)
 
 This is the final planned release of the 0.4 line. Version 2.0 replaces the
