@@ -17,6 +17,11 @@
 # With no gem path, the newest pkg/*.gem is used. With no --gemspec, the
 # single *.gemspec in the current directory is used.
 #
+# Placement: put this file in a directory the gemspec EXCLUDES (check with
+#   ruby -e 'puts Gem::Specification.load("x.gemspec").files.grep(/verify_gem/)'
+# — must print nothing). A `git ls-files` gemspec ships whatever is tracked, so
+# a gate placed in an unexcluded directory ships itself to users.
+#
 # Rakefile wiring (bundler/gem_tasks projects):
 #
 #   Rake::Task["build"].enhance { sh "ruby", "scripts/verify_gem.rb" }
@@ -26,7 +31,8 @@
 # Control tests (run once when adopting, and again whenever this file changes):
 #   1. `git add -f .audit-decoy.env && gem build ...` → must FAIL (unexpected file)
 #   2. put "ghp_" + 36 alnum chars into a tracked file → must FAIL (secret pattern)
-#   3. put "/Users/<you>/..." into a tracked file → must FAIL (local path)
+#   3. put an absolute path under your home directory into a tracked file → must FAIL (local path)
+#      (do not spell the path out here: this file scans itself, see the self-check below)
 #   4. delete a file listed in spec.files after build → must FAIL (missing file)
 #   5. run against an empty gem → must FAIL (zero files)
 #   6. clean build → must PASS
@@ -35,8 +41,6 @@ require "rubygems"
 require "rubygems/package"
 require "zlib"
 require "optparse"
-require "tmpdir"
-require "fileutils"
 
 gemspec_path = nil
 OptionParser.new do |o|
@@ -106,6 +110,9 @@ bad = actual.select { |f| BAD_NAMES.any? { |re| f.match?(re) } }
 failures << "suspicious file names (#{bad.size}):\n  " + bad.join("\n  ") unless bad.empty?
 
 # --- 3. content scan (narrow patterns only; wide words like "token" are noise) ------
+# Patterns whose source text would itself match are written as adjacent string
+# literals (Ruby concatenates them), so that this file never trips its own scan if
+# a project ships it inside the gem.
 SECRET_PATTERNS = {
   "GitHub token"        => /\bghp_[A-Za-z0-9]{36}\b|\bgithub_pat_[A-Za-z0-9_]{22,}\b/,
   "OpenAI-style key"    => /\bsk-[A-Za-z0-9_-]{20,}\b/,
@@ -114,8 +121,16 @@ SECRET_PATTERNS = {
   "Slack token"         => /\bxox[baprs]-[0-9A-Za-z-]{10,}\b/,
   "private key block"   => /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
   "local absolute path" => %r{(?<![A-Za-z0-9_])/(Users|home)/[A-Za-z0-9_.-]+/},
-  "Dropbox path"        => %r{/CloudStorage/Dropbox/}
+  "Dropbox path"        => Regexp.new("/CloudStorage/" "Dropbox/")
 }.freeze
+
+# Self-check: this file is often tracked (and therefore public, sometimes even
+# shipped). If its own source matches one of its patterns, the gate would fail on
+# itself the moment it is included in a payload. Refuse to run rather than let
+# that reappear through an innocent edit to a comment or an example.
+self_src = File.binread(__FILE__)
+self_hits = SECRET_PATTERNS.select { |_, re| self_src.match?(re) }.keys
+abort "verify_gem: own source matches #{self_hits.join(', ')} — write the offending text as adjacent string literals" unless self_hits.empty?
 hits = []
 contents.each do |name, data|
   next if data.nil? || data.empty?
@@ -127,13 +142,16 @@ contents.each do |name, data|
 end
 failures << "content scan hits (#{hits.size}):\n  " + hits.join("\n  ") unless hits.empty?
 
-# --- 4. permissions (owner-only files break sudo installs) ------------------------
+# --- 4. permissions ----------------------------------------------------------------
+# A `sudo gem install` keeps the mode from the archive and makes root the owner, so
+# anything without the world-read bit (0600, 0640, ...) becomes unreadable to the
+# user who then requires the gem. Require o+r on every file.
 Gem::Package::TarReader.new(File.open(gem_path, "rb")) do |outer|
   outer.each do |entry|
     next unless entry.full_name == "data.tar.gz"
     Zlib::GzipReader.wrap(entry) do |gz|
       Gem::Package::TarReader.new(gz) do |inner|
-        narrow = inner.select { |e| e.file? && (e.header.mode & 0o044).zero? }.map(&:full_name)
+        narrow = inner.select { |e| e.file? && (e.header.mode & 0o004).zero? }.map(&:full_name)
         failures << "files not world-readable (#{narrow.size}):\n  " + narrow.join("\n  ") unless narrow.empty?
       end
     end
