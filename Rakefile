@@ -18,3 +18,8 @@ task :normalize_permissions do
 end
 
 Rake::Task["build"].enhance([:normalize_permissions])
+
+# Pre-release gate: after building, open the .gem and verify its payload
+# against spec.files in both directions, then scan names, contents and modes.
+# `rake release` depends on `build`, so a FAIL here stops the push.
+Rake::Task["build"].enhance { sh "ruby", "scripts/verify_gem.rb" }

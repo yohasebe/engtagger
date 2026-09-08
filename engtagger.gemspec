@@ -11,7 +11,7 @@ Gem::Specification.new do |gem|
   gem.license       = "GPL-3.0-only"
   gem.required_ruby_version = Gem::Requirement.new(">= 2.6")
   gem.files = Dir.chdir(File.expand_path(__dir__)) do
-    `git ls-files -z`.split("\x0").reject { |f| f.match(%r{\A(?:test|spec|features|tools|docs)/}) }
+    `git ls-files -z`.split("\x0").reject { |f| f.match(%r{\A(?:test|spec|features|tools|docs|scripts)/}) }
   end
   gem.executables   = gem.files.grep(%r{^bin/}).map { |f| File.basename(f) }
   gem.name          = "engtagger"
