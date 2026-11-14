@@ -545,23 +545,27 @@ class EngTagger
 
     found = Hash.new(0)
     phrase_ext = /(?:#{PREP}|#{DET}|#{NUM})+/xo
+    noun = /#{NN}/o
+    longest = @conf[:longest_noun_phrase]
     scanned = tagged.scan(@@mnp)
     # Find MNPs in the text, one sentence at a time
     # Record and split if the phrase is extended by a (?:PREP|DET|NUM)
     mn_phrases = []
     scanned.each do |m|
       found[m] += 1 if phrase_ext =~ m
-      mn_phrases += m.split(phrase_ext)
+      mn_phrases.concat(m.split(phrase_ext))
     end
     mn_phrases.each do |mnp|
       # Split the phrase into an array of words, and create a loop for each word,
       # shortening the phrase by removing the word in the first position.
       # Record the phrase and any single nouns that are found
       words = mnp.split
-      words.length.times do
-        found[words.join(" ")] += 1 if words.length > 1
-        w = words.shift
-        found[w] += 1 if w =~ /#{NN}/
+      words.each_index do |i|
+        # Longer phrases would be dropped by the length limit below, so they
+        # are not built in the first place.
+        length = words.length - i
+        found[words[i..].join(" ")] += 1 if length > 1 && length <= longest
+        found[words[i]] += 1 if noun.match?(words[i])
       end
     end
     ret = Hash.new(0)
@@ -677,7 +681,7 @@ class EngTagger
     tokenized = []
     # Tokenize the text (splitting on punctuation as you go)
     cleaned_text.split(/\s+/).each do |line|
-      tokenized += split_punct(line)
+      tokenized.concat(split_punct(line))
     end
     split_sentences(tokenized)
   end

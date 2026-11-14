@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.6 (2026-11-14)
+
+- Fix `get_noun_phrases`, `get_words` and `add_tags` taking time quadratic in
+  the input length on long runs of nouns and on long texts. Output is
+  unchanged. Upgrade if you tag text from untrusted sources.
+
 ## 0.4.5 (2026-08-14)
 
 License metadata correction; no code changes. This library is a port (2009) of

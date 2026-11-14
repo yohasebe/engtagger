@@ -183,6 +183,13 @@ class TestEngTagger < Test::Unit::TestCase
     end
   end
 
+  def test_get_noun_phrases_honors_the_length_limit_on_long_noun_runs
+    run = "<nn>cat</nn> " * 8
+    assert_equal({ "cat" => 8, "cat cat" => 1, "cat cat cat" => 1 },
+                 EngTagger.new(longest_noun_phrase: 3).get_noun_phrases(run))
+    assert_equal({ "cat" => 8 }, EngTagger.new(longest_noun_phrase: 1).get_noun_phrases(run))
+  end
+
   def test_get_max_noun_phrases
     result = @tagger.send(:get_max_noun_phrases, TAGGED)
     assert_instance_of(Hash, result)
