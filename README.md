@@ -210,9 +210,11 @@ engine, so tagged output is not byte-identical to 0.4.x. Tokenization also
 follows PTB/UD conventions more closely (e.g. `don't` splits as `do|n't`).
 Configuration keys of the retired HMM engine
 (`:relax`, `:unknown_word_tag`, lexicon paths) are accepted and ignored with
-a warning; `install`, `assign_tag`, `EngTagger.hmm`, `EngTagger.lexicon` and
-the `DEFAULT_LEXPATH`, `DEFAULT_WORDPATH` and `DEFAULT_TAGPATH` constants were
-removed.
+a warning; `install`, `EngTagger.hmm`, `EngTagger.lexicon` and the
+`DEFAULT_LEXPATH`, `DEFAULT_WORDPATH` and `DEFAULT_TAGPATH` constants were
+removed. `assign_tag(prev_tag, word)` still tags one word from the tag before
+it, but it does not see the surrounding words; use `tag_pairs` or `add_tags`
+wherever the whole text is available.
 
 If you need the old engine's exact output, pin the previous line:
 

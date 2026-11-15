@@ -209,6 +209,20 @@ class EngTagger
     end.join(" ")
   end
 
+  # Tag one word from the tag before it, in the classic tagset. The words
+  # around it are not seen, so `tag_pairs` and `add_tags` are more accurate.
+  #
+  # @param prev_tag [String, nil] the classic tag of the preceding word; "pp"
+  #   or nil at the start of a sentence
+  # @param word [String] a single token
+  # @return [String] the classic tag
+  #
+  def assign_tag(prev_tag, word)
+    prev = prev_tag.to_s
+    prev = nil if prev.empty? || prev == "pp"
+    @tagger.legacy_tag(@tagger.tag_word(word.encode(Encoding::UTF_8), prev && @tagger.ptb_tag(prev)))
+  end
+
   # Given a text string, return as many nouns and noun phrases as possible.
   # Applies add_tags and involves three stages:
   #

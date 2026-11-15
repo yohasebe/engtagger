@@ -64,6 +64,13 @@ class TestEngTagger < Test::Unit::TestCase
     assert_equal("<nn>cat</nn>", ptb.add_tags("cat"))
   end
 
+  def test_assign_tag_tags_one_word_in_the_classic_tagset
+    assert_equal("det", @tagger.assign_tag("pp", "the"))
+    assert_equal("pp", @tagger.assign_tag("nn", "."))
+    assert_equal(@tagger.assign_tag(nil, "cat"), @tagger.assign_tag("pp", "cat"))
+    assert_equal("det", EngTagger.new(tagset: :ptb).assign_tag("pp", "the"))
+  end
+
   def test_text_in_another_encoding_is_converted
     latin1 = "caf\u00e9 society".encode("ISO-8859-1")
     assert_equal(%w[café society], @tagger.tag_pairs(latin1).map(&:first))

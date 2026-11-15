@@ -48,6 +48,29 @@ class TestPerceptron < Test::Unit::TestCase
     assert_equal(%w[nn nn], @tagger.tag_tokens(%w[qwertyx zxcvbn]))
   end
 
+  def test_tag_word_uses_the_previous_tag
+    assert_equal("nn", @tagger.tag_word("qwertyx", "det"))
+    assert_equal("nnp", @tagger.tag_word("Alice", "det"))
+  end
+
+  def test_tag_word_leaves_out_features_of_unseen_neighbours
+    path = File.join(@dir, "context.etm")
+    EngTagger::Model::Builder.new(
+      weights: { "bias" => { "nn" => 1.0 }, "i+1 word -END-" => { "vbd" => 5.0 },
+                 "i first" => { "det" => 3.0 }, "i-1 word -START-" => { "det" => 3.0 } },
+      tagdict: {}, classes: CLASSES
+    ).write(path)
+    tagger = EngTagger::Perceptron.new(model: path)
+
+    assert_equal("vbd", tagger.tag_tokens(["qwertyx"]).first)
+    assert_equal("det", tagger.tag_word("qwertyx"))
+    assert_equal("nn", tagger.tag_word("qwertyx", "det"))
+  end
+
+  def test_ptb_tag_reverses_the_renamed_classic_tags
+    assert_equal(["DT", ".", "$", "NN"], %w[det pp ppd nn].map { |t| @tagger.ptb_tag(t) })
+  end
+
   # A model that yields the processor at every feature lookup, so concurrent
   # predictions interleave as tightly as the scheduler allows.
   class YieldingModel < EngTagger::Model

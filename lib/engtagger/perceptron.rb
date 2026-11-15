@@ -21,17 +21,28 @@ class EngTagger
 
     DEFAULT_MODEL = File.join(File.dirname(__FILE__), "model.etm.gz")
 
-    # PTB/UD tag -> classic EngTagger tag. The classic tagset renames a few
+    # PTB tag -> classic EngTagger tag. The classic tagset renames a few
     # categories for XML-tag safety (DET for DT, PRPS for PRP$) and splits
     # punctuation into named classes.
-    LEGACY_TAGS = {
+    RENAMED_TAGS = {
       "DT" => "det", "PRP$" => "prps", "WP$" => "wps", "PRP" => "prp",
       "." => "pp", "," => "ppc", ":" => "pps", "``" => "ppl", "''" => "ppr",
-      "$" => "ppd", "#" => "ppd", "-LRB-" => "lrb", "-RRB-" => "rrb",
-      # UD additions with no classic equivalent
+      "$" => "ppd", "#" => "ppd", "-LRB-" => "lrb", "-RRB-" => "rrb"
+    }.freeze
+
+    # PTB/UD tag -> classic EngTagger tag, including the UD tags that have no
+    # classic equivalent.
+    LEGACY_TAGS = RENAMED_TAGS.merge(
       "HYPH" => "ppc", "NFP" => "sym", "AFX" => "jj", "ADD" => "nn",
       "GW" => "nn", "XX" => "sym"
-    }.freeze
+    ).freeze
+
+    # Classic EngTagger tag -> PTB tag, for the renamed categories.
+    PTB_TAGS = RENAMED_TAGS.each_with_object({}) { |(ptb, classic), h| h[classic] ||= ptb }.freeze
+
+    # Features that read the words and tags around a token.
+    LEFT_CONTEXT = /\A(?:i first\z|i-1 (?:word|suffix) |i-2 |i tag\+i-2 )/
+    RIGHT_CONTEXT = /\Ai\+/
 
     attr_reader :model
 
@@ -64,6 +75,16 @@ class EngTagger
       end
     end
 
+    # Tag one word from the tag before it alone, without the words around it.
+    # prev: PTB tag of the preceding token, or nil at the start of a sentence.
+    def tag_word(word, prev = nil)
+      known = @tagdict[normalize(word)] and return known
+
+      feats = features(0, word, build_context([word]), prev || START[0], START[1])
+      feats.reject! { |f| f.match?(RIGHT_CONTEXT) || (prev && f.match?(LEFT_CONTEXT)) }
+      predict(feats, Array.new(@classes.size, 0))
+    end
+
     # XML-style output, matching the classic engine's shape:
     # "<nnp>Alice</nnp> <vbd>chased</vbd> ..."
     #
@@ -84,6 +105,11 @@ class EngTagger
     # emits). Unmapped tags simply downcase: NN -> nn, VBD -> vbd.
     def legacy_tag(ptb_tag)
       LEGACY_TAGS[ptb_tag] || ptb_tag.downcase
+    end
+
+    # PTB equivalent of a classic tag: det -> DT, pp -> ".", nn -> NN.
+    def ptb_tag(classic_tag)
+      PTB_TAGS[classic_tag] || classic_tag.upcase
     end
 
     private

@@ -7,7 +7,8 @@ A rewrite of the tagging engine. Tagging and tokenization output differ from 0.4
 - Replace the HMM tagger with an averaged perceptron and a bundled model trained on UD English-EWT and automatically tagged Wikipedia, Wikinews and Stack Exchange text (see NOTICE).
 - Add a PTB/UD-compatible tokenizer whose tokens are substrings of the input.
 - Add the `tagset: :ptb` option, which makes `tag_pairs` and `get_readable` emit standard Penn Treebank tags.
-- Remove the HMM probability tables derived from the Penn Treebank, `install`, `assign_tag`, `EngTagger.hmm`, `EngTagger.lexicon` and the `DEFAULT_*PATH` constants.
+- Remove the HMM probability tables derived from the Penn Treebank, `install`, `EngTagger.hmm`, `EngTagger.lexicon` and the `DEFAULT_*PATH` constants.
+- Keep `assign_tag(prev_tag, word)`, which now tags one word with the bundled model.
 - Ignore the configuration keys of the HMM engine (`:relax`, `:unknown_word_tag`, lexicon paths) with a warning.
 - Remove the `sin_lru_redux` dependency; the gem has no runtime dependencies.
 - Require Ruby >= 3.0.
