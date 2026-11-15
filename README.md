@@ -1,80 +1,136 @@
 # EngTagger
 
-English Part-of-Speech Tagger Library; a Ruby port of Lingua::EN::Tagger
+English part-of-speech tagger library in pure Ruby
 
 ## Description
 
-A Ruby port of Perl Lingua::EN::Tagger, a probability based, corpus-trained
-tagger that assigns POS tags to English text based on a lookup dictionary and
-a set of probability values. The tagger assigns appropriate tags based on
-conditional probabilities--it examines the preceding tag to determine the
-appropriate tag for the current word. Unknown words are classified according to
-word morphology or can be set to be treated as nouns or other parts of speech.
-The tagger also extracts as many nouns and noun phrases as it can, using a set
-of regular expressions.
+EngTagger assigns Penn Treebank-style part-of-speech tags to English text and
+extracts nouns and noun phrases from the tagged result. Since version 2.0 the
+tagger is an **averaged perceptron** with a bundled model — no external
+dependencies, no Python, no network: `gem install engtagger` and everything
+runs anywhere Ruby (>= 3.0) runs.
+
+The tagging and extraction methods of the 0.4 line are kept, with considerably
+more accurate tags. See [Upgrading from 0.4.x](#upgrading-from-04x) for what
+was removed.
 
 ## Features
 
-* Assigns POS tags to English text
-* Extract noun phrases from tagged text
-* etc.
+* Part-of-speech tagging with a corpus-trained averaged perceptron
+* PTB/Universal Dependencies-compatible word tokenizer (non-destructive:
+  every token is a substring of the input)
+* Noun and noun-phrase extraction from tagged text
+* Classic XML-style tagged output, or standard Penn Treebank tags via
+  `tagset: :ptb`
+* Pure Ruby, zero runtime dependencies, 2.4 MB bundled model
+* One tagger object can be shared between threads
+
+## Accuracy
+
+![Token accuracy of EngTagger and other POS taggers](https://raw.githubusercontent.com/yohasebe/engtagger/master/docs/accuracy.svg)
+
+Token accuracy (%) on the test splits of two Universal Dependencies English
+treebanks — [EWT](https://universaldependencies.org/treebanks/en_ewt/) (web
+media: reviews, emails, forums) and
+[GUM](https://universaldependencies.org/treebanks/en_gum/) (multi-genre) —
+using Penn Treebank tags, gold tokenization and gold sentence boundaries
+(Universal Dependencies release 2.18):
+
+| System | Algorithm | EWT test | GUM test |
+|---|---|---|---|
+| EngTagger 0.4 (previous) | HMM (bigram) | 84.9 | 88.4 |
+| NLTK 3 | averaged perceptron, WSJ-trained | 85.1 | 90.4 |
+| **EngTagger 2.0 (this gem)** | **averaged perceptron** | **94.2** | **95.7** |
+| Stanza | neural, EWT-trained | 96.2 | 97.7 |
+
+For a fair reading of the numbers:
+
+* **EngTagger 2.0** is measured with the model file shipped in this gem. It
+  is trained on the EWT training split and on automatically tagged text from
+  Wikipedia, Wikinews and Stack Exchange. No GUM annotations were used in
+  training, so GUM is a held-out treebank for it.
+* The figures are for text that is already split into sentences and tokens.
+  Tagging raw text also depends on the tokenizer.
+* **NLTK 3** uses the same algorithm family as EngTagger 2.0 but its bundled
+  model is trained on Wall Street Journal text, so it runs out-of-domain on
+  these test sets.
+* **Stanza** is a neural pipeline (Python/PyTorch, large models) trained on
+  EWT itself; it serves as the accuracy reference point, at the cost of
+  dependencies and compute.
 
 ## Synopsis
 
 ```ruby
 require 'engtagger'
 
-# Create a parser object
+# Create a tagger object
 tgr = EngTagger.new
 
 # Sample text
-text = "Alice chased the big fat cat."
+text = "Alice chased the big black cat."
 
 # Add part-of-speech tags to text
 tagged = tgr.add_tags(text)
 
-#=> "<nnp>Alice</nnp> <vbd>chased</vbd> <det>the</det> <jj>big</jj> <jj>fat</jj><nn>cat</nn> <pp>.</pp>"
+#=> "<nnp>Alice</nnp> <vbd>chased</vbd> <det>the</det> <jj>big</jj> <jj>black</jj> <nn>cat</nn> <pp>.</pp>"
 
 # Get a list of all nouns and noun phrases with occurrence counts
 word_list = tgr.get_words(text)
 
-#=> {"Alice"=>1, "cat"=>1, "fat cat"=>1, "big fat cat"=>1}
+#=> {"Alice" => 1, "big black cat" => 1, "black cat" => 1, "cat" => 1}
 
 # Get a readable version of the tagged text
 readable = tgr.get_readable(text)
 
-#=> "Alice/NNP chased/VBD the/DET big/JJ fat/JJ cat/NN ./PP"
+#=> "Alice/NNP chased/VBD the/DET big/JJ black/JJ cat/NN ./PP"
 
 # Get all nouns from a tagged output
 nouns = tgr.get_nouns(tagged)
 
-#=> {"cat"=>1, "Alice"=>1}
+#=> {"Alice" => 1, "cat" => 1}
 
 # Get all proper nouns
 proper = tgr.get_proper_nouns(tagged)
 
-#=> {"Alice"=>1}
+#=> {"Alice" => 1}
 
 # Get all past tense verbs
 pt_verbs = tgr.get_past_tense_verbs(tagged)
 
-#=> {"chased"=>1}
+#=> {"chased" => 1}
 
 # Get all the adjectives
 adj = tgr.get_adjectives(tagged)
 
-#=> {"big"=>1, "fat"=>1}
+#=> {"big" => 1, "black" => 1}
 
 # Get all noun phrases of any syntactic level
-# (same as word_list but take a tagged input)
+# (same as word_list but takes a tagged input)
 nps = tgr.get_noun_phrases(tagged)
 
-#=> {"Alice"=>1, "cat"=>1, "fat cat"=>1, "big fat cat"=>1}
+#=> {"Alice" => 1, "big black cat" => 1, "black cat" => 1, "cat" => 1}
+
+# Standard Penn Treebank tags, if you prefer them over the classic tagset
+ptb = EngTagger.new(tagset: :ptb)
+ptb.get_readable(text)
+
+#=> "Alice/NNP chased/VBD the/DT big/JJ black/JJ cat/NN ./."
+
+ptb.tag_pairs("Alice chased the cat.")
+
+#=> [["Alice", :NNP], ["chased", :VBD], ["the", :DT], ["cat", :NN], [".", :"."]]
 ```
 
 ## Tag Set
 
-The set of POS tags used here is a modified version of the Penn Treebank tagset. Tags with non-letter characters have been redefined to work better in our data structures. Also, the "Determiner" tag (DET) has been changed from 'DT', in order to avoid confusion with the HTML tag, `<DT>`.
+`add_tags`, `tag_pairs` and `get_readable` use the classic EngTagger tagset by
+default: a modified Penn Treebank tagset in which tags with non-letter
+characters are renamed to work in XML-style markup and regular expressions
+(`DET` for `DT`, `PRPS` for `PRP$`, and named punctuation classes such as `PP`
+for `.`). With `EngTagger.new(tagset: :ptb)`, `tag_pairs` and `get_readable`
+emit standard Penn Treebank tags instead; `add_tags` always uses the classic
+tagset, whose tags are valid element names. The text inside the tags is not
+escaped.
 
     CC      Conjunction, coordinating               and, or
     CD      Adjective, cardinal number              3, fifteen
@@ -122,63 +178,61 @@ The set of POS tags used here is a modified version of the Penn Treebank tagset.
     LRB     Punctuation, left bracket               (, {, [
     RRB     Punctuation, right bracket              ), }, ]
 
+## The bundled model
+
+The tagger ships with an averaged-perceptron model
+(`lib/engtagger/model.etm.gz`, distributed under CC BY-SA 4.0) trained on:
+
+* the [Universal Dependencies English Web Treebank](https://github.com/UniversalDependencies/UD_English-EWT),
+  whose annotations are licensed CC BY-SA 4.0;
+* about 32,000 sentences from Wikipedia, Wikinews and Stack Exchange, tagged
+  automatically with a large language model. Every article and post is listed
+  with its licence in [`sources/`](https://github.com/yohasebe/engtagger/tree/master/sources).
+
+Unlike the 0.4.x line, no Penn Treebank-derived data is included. Provenance
+and attribution details are in the NOTICE file; the packed model format is
+documented in the repository (`docs/model-format.md`).
+
 ## Installation
-
-**Recommended Approach (without sudo):**
-
-It is recommended to install the `engtagger` gem within your user environment without root privileges. This ensures proper file permissions and avoids potential issues. You can achieve this by using Ruby version managers like `rbenv` or `rvm` to manage your Ruby versions and gemsets.
-
-To install without `sudo`, simply run:
 
 ```bash
 gem install engtagger
 ```
 
-**Alternative Approach (with sudo):**
+Requires Ruby >= 3.0 and nothing else. Pre-release versions are installed with
+`gem install engtagger --pre`.
 
-If you must use `sudo` for installation, you'll need to adjust file permissions afterward to ensure accessibility.
+## Upgrading from 0.4.x
 
-1. Install the gem with `sudo`:
+The tagging and extraction methods keep their names and arguments, but the
+tags themselves are produced by a different, considerably more accurate
+engine, so tagged output is not byte-identical to 0.4.x. Tokenization also
+follows PTB/UD conventions more closely (e.g. `don't` splits as `do|n't`).
+Configuration keys of the retired HMM engine
+(`:relax`, `:unknown_word_tag`, lexicon paths) are accepted and ignored with
+a warning; `install`, `assign_tag`, `EngTagger.hmm`, `EngTagger.lexicon` and
+the `DEFAULT_LEXPATH`, `DEFAULT_WORDPATH` and `DEFAULT_TAGPATH` constants were
+removed.
 
-```bash
-sudo gem install engtagger
+If you need the old engine's exact output, pin the previous line:
+
+```ruby
+gem "engtagger", "~> 0.4"
 ```
-
-2. Grant necessary permissions to your user:
-
-```bash
-sudo chown -R $(whoami) /Library/Ruby/Gems/2.6.0/gems/engtagger-0.4.2
-```
-
-**Note:** The path above assumes you are using Ruby version 2.6.0.  If you are using a different version, you will need to modify the path accordingly.  You can find your Ruby version by running `ruby -v`. 
-
-## Troubleshooting
-
-**Permission Issues:**
-
-If you encounter "cannot load such file" errors after installation, it might be due to incorrect file permissions. Ensure you've followed the instructions for adjusting permissions if you used `sudo` during installation.
 
 ## Author
 
-Yoichiro Hasebe (yohasebe [at] gmail.com)
+Yoichiro Hasebe
 
-## Contributors
-
-Many thanks to the collaborators listed in the right column of this GitHub page.
-
-## Acknowledgement
-
-This Ruby library is a direct port of Lingua::EN::Tagger available at CPAN.
-The credit for the crucial part of its algorithm/design therefore goes to
-Aaron Coburn, the author of the original Perl version.
+EngTagger began in 2009 as a Ruby port of Lingua::EN::Tagger by Aaron Coburn.
+Version 2.0 replaces its HMM tagger and probability tables with a new
+averaged-perceptron tagger, tokenizer and trained model. The extraction of
+nouns and noun phrases and the formatting of tagged output retain routines
+ported and adapted from Lingua::EN::Tagger.
 
 ## License
 
 This library is distributed under the GNU General Public License version 3
-(GPL-3.0-only), following the license of the Perl library it derives from
-(Lingua::EN::Tagger has been GPL-3 since its version 0.14, 2008). Please see
-the LICENSE file.
-
-The 0.4 line ships probability tables derived from the Penn Treebank. Version
-2.0 drops them in favour of a model trained on openly licensed corpora; if the
-provenance of the bundled data matters for your use, prefer 2.x.
+(GPL-3.0-only), the same license as the 0.4 line.
+See the LICENSE file, and the NOTICE file for the licensing of the bundled
+model and its training data.

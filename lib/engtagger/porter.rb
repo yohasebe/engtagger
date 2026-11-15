@@ -37,7 +37,7 @@ module Stemmable
                     aliti    |
                     iviti    |
                     biliti   |
-                    logi)$/x.freeze
+                    logi)$/x
 
   SUFFIX_2_REGEXP = /(
                       al       |
@@ -57,17 +57,17 @@ module Stemmable
                       iti      |
                       ous      |
                       ive      |
-                      ize)$/x.freeze
+                      ize)$/x
 
   C = "[^aeiou]" # consonant
   V = "[aeiouy]" # vowel
-  CC = "#{C}(?>[^aeiouy]*)" # consonant sequence
-  VV = "#{V}(?>[aeiou]*)"   # vowel sequence
+  CC = "#{C}(?>[^aeiouy]*)".freeze # consonant sequence
+  VV = "#{V}(?>[aeiou]*)".freeze   # vowel sequence
 
-  MGR0 = /^(#{CC})?#{VV}#{CC}/o.freeze # [cc]vvcc... is m>0
-  MEQ1 = /^(#{CC})?#{VV}#{CC}(#{VV})?$/o.freeze # [cc]vvcc[vv] is m=1
-  MGR1 = /^(#{CC})?#{VV}#{CC}#{VV}#{CC}/o.freeze # [cc]vvccvvcc... is m>1
-  VOWEL_IN_STEM = /^(#{CC})?#{V}/o.freeze # vowel in stem
+  MGR0 = /^(#{CC})?#{VV}#{CC}/o # [cc]vvcc... is m>0
+  MEQ1 = /^(#{CC})?#{VV}#{CC}(#{VV})?$/o # [cc]vvcc[vv] is m=1
+  MGR1 = /^(#{CC})?#{VV}#{CC}#{VV}#{CC}/o # [cc]vvccvvcc... is m>1
+  VOWEL_IN_STEM = /^(#{CC})?#{V}/o # vowel in stem
 
   # Porter stemmer in Ruby.
   #
@@ -125,7 +125,6 @@ module Stemmable
     if w =~ SUFFIX_1_REGEXP
       stem = $`
       suffix = $1
-      # print "stem= " + stem + "\n" + "suffix=" + suffix + "\n"
       w = stem + STEP_2_LIST[suffix] if stem =~ MGR0
     end
 

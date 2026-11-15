@@ -1,73 +1,43 @@
 # Changelog
 
+## 2.0.0 (unreleased)
+
+A rewrite of the tagging engine. Tagging and tokenization output differ from 0.4.x; pin `gem "engtagger", "~> 0.4"` to keep the old engine.
+
+- Replace the HMM tagger with an averaged perceptron and a bundled model trained on UD English-EWT and automatically tagged Wikipedia, Wikinews and Stack Exchange text (see NOTICE).
+- Add a PTB/UD-compatible tokenizer whose tokens are substrings of the input.
+- Add the `tagset: :ptb` option, which makes `tag_pairs` and `get_readable` emit standard Penn Treebank tags.
+- Remove the HMM probability tables derived from the Penn Treebank, `install`, `assign_tag`, `EngTagger.hmm`, `EngTagger.lexicon` and the `DEFAULT_*PATH` constants.
+- Ignore the configuration keys of the HMM engine (`:relax`, `:unknown_word_tag`, lexicon paths) with a warning.
+- Remove the `sin_lru_redux` dependency; the gem has no runtime dependencies.
+- Require Ruby >= 3.0.
+- Ship only `lib/` and the user-facing documents in the gem package.
+
 ## 0.4.6 (2026-11-14)
 
-- Fix `get_noun_phrases`, `get_words` and `add_tags` taking time quadratic in
-  the input length on long runs of nouns and on long texts. Output is
-  unchanged. Upgrade if you tag text from untrusted sources.
+- Fix `get_noun_phrases`, `get_words` and `add_tags` taking time quadratic in the input length; output is unchanged. Upgrade if you tag text from untrusted sources.
 
 ## 0.4.5 (2026-08-14)
 
-License metadata correction; no code changes. This library is a port (2009) of
-Perl Lingua::EN::Tagger, which has been licensed GPL-3.0-only since its
-version 0.14 (2008). As a derivative work EngTagger is therefore GPL-3.0-only:
-the bundled LICENSE is now the GPLv3 text and the gemspec declares
-`GPL-3.0-only`. Earlier releases carried a GPLv2 license text, and 0.4.4
-declared `GPL-2.0-or-later`; both were inaccurate.
+- Correct the license to GPL-3.0-only, the license of Lingua::EN::Tagger, which this library is a port of; the LICENSE file is now the GPLv3 text.
 
 ## 0.4.4 (2026-08-14)
 
-This is the final planned release of the 0.4 line. Version 2.0 replaces the
-HMM engine with an averaged perceptron and does not ship the Penn
-Treebank-derived probability tables, so its tagging output differs. Pin
-`gem "engtagger", "~> 0.4"` to stay on this line; it will receive critical
-fixes only.
-
-- Fix the test suite silently rewriting the bundled lexicon files
-  (`lib/engtagger/*.hash`) on every run: a path-join bug in the test setup made
-  the existence check always fail, so `install` ran before each test. This was
-  also the enabler of the 0600-permission contamination behind #20. Tests are
-  ~6x faster as a result.
-- `get_sentences` now applies its intended punctuation cleanup. Four of its
-  five reattachment rules had discarded their results since the original port
-  (only the leading-backquote rule was ever applied), and their regexes were
-  corrupted by string escaping (`\W` matched a literal "W"). Sentences returned
-  by this method now read naturally (`"Lisa Raines, a lawyer,"`,`"$3"`).
-  Known limitation carried over from the tokenizer: contractions other than
-  possessives remain space-separated (`"I 'm"`, `"is n't"`).
-- Fix the public `WORD` constant, whose regex was corrupted by the same
-  escaping problem and matched only `<w>`-style tags.
-- Tag regexes produced by `EngTagger.get_ext` (NUM, NN, SEN, etc.) now end with
-  a real `\s*`, so they consume trailing whitespace including newlines instead
-  of spaces only.
-- `assign_tag` no longer raises `NoMethodError` for words absent from the
-  lexicon; it returns `""` so callers fall back to `"nn"` as designed.
-- `EngTagger::VERSION` is now defined at runtime (`engtagger/version` was not
-  required by the library itself).
-- Read and write the Marshal lexicon files in binary mode to avoid corruption
-  on Windows.
-- Remove the stray shebang and executable bit from `lib/engtagger.rb`, and the
-  obsolete `require "rubygems"`.
-- Clarify licensing: the LICENSE file had a stray MIT license appended after
-  the GPLv2 text. The library is licensed as GPL-2.0-or-later; the MIT tail has
-  been removed and the gemspec now declares the SPDX identifier.
-- Gemspec: use the https homepage URL, add `metadata` URIs, and drop the
-  obsolete `test_files`.
-- Fix a dead test (`text_get_ext` typo) that had never run and would have
-  failed if enabled.
-- Note in the README that 0.4.x carries Penn Treebank-derived probability
-  tables; 2.x is trained on openly licensed data instead.
+- Fix `get_sentences` so that punctuation is reattached to the neighboring word.
+- Fix the `WORD` constant, which matched only `<w>` tags.
+- Fix the tag regexes of `EngTagger.get_ext` so that they consume trailing whitespace, including newlines.
+- Fix `assign_tag` raising `NoMethodError` for words absent from the lexicon.
+- Fix the lexicon files being read and written in text mode, which corrupted them on Windows.
+- Fix the test suite rewriting the bundled lexicon files on every run.
+- Define `EngTagger::VERSION` when the library is required.
+- Remove a stray MIT license text from the LICENSE file and declare the license in the gemspec.
+- Remove the shebang and executable bit from `lib/engtagger.rb`.
 
 ## 0.4.3
 
-- Fix gem packaging that produced files with owner-only (0600) permissions,
-  making the gem unreadable after a `sudo gem install` (#20). File permissions
-  are now normalized before packaging.
-- Restore lost debug output in `valid_text` (a remnant of the Perl port left
-  the message string in void context).
-- Clarify that the VBG tag covers both gerunds and present participles, as in
-  the Penn Treebank tagset (#19).
-- Minor RuboCop cleanups.
+- Fix gem files being packaged with owner-only permissions, which made the gem unreadable after `sudo gem install` (#20).
+- Fix the debug message of `valid_text` not being printed.
+- Document that the VBG tag covers both gerunds and present participles (#19).
 
 ## 0.4.2 and earlier
 

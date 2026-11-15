@@ -1,0 +1,73 @@
+NOTICE — provenance and licensing of EngTagger 2.x
+
+This file records where the pieces of this gem come from and under which
+terms each is distributed. The source code is distributed under
+GPL-3.0-only (see LICENSE). The bundled model file is distributed under
+CC BY-SA 4.0 (section 2).
+
+1. Code lineage
+
+  EngTagger began (2009) as a Ruby port of the Perl library
+  Lingua::EN::Tagger by Aaron Coburn
+  (https://metacpan.org/dist/Lingua-EN-Tagger), which is licensed under
+  version 3 of the GNU General Public License.
+
+  Version 2.0 replaces the HMM tagger and probability tables of that
+  library with a new averaged-perceptron tagger, tokenizer and trained
+  model (lib/engtagger/perceptron.rb, tokenizer.rb, model.rb,
+  model_builder.rb), none of which is ported from it. lib/engtagger.rb
+  retains routines ported and adapted from Lingua::EN::Tagger for
+  extracting nouns, proper nouns and noun phrases, formatting tagged
+  output and related text processing, together with its tagset
+  conventions. The library keeps the licence of the 0.4 line,
+  GPL-3.0-only.
+
+  Lingua::EN::Tagger:
+    Copyright 2003-2010 Aaron Coburn
+  EngTagger:
+    Copyright (c) 2009-2026 Yoichiro Hasebe
+
+  The Porter stemmer (lib/engtagger/porter.rb) is the Ruby implementation
+  by Ray Pereda of the Porter stemming algorithm (Martin Porter, 1980),
+  from https://tartarus.org/martin/PorterStemmer/, where the
+  implementations are offered free of charge for any purpose.
+
+2. Bundled model (lib/engtagger/model.etm.gz)
+
+  The bundled part-of-speech model is a set of learned weights, distributed
+  under the Creative Commons Attribution-ShareAlike 4.0 International
+  licence (https://creativecommons.org/licenses/by-sa/4.0/). Whether learned
+  weights are a derivative of their training data is not legally settled;
+  the model takes the ShareAlike terms of the resources below as a
+  conservative choice.
+
+  The model was trained on:
+
+  - Universal Dependencies English Web Treebank (EWT), release 2.18.
+    https://github.com/UniversalDependencies/UD_English-EWT
+    Annotations (c) 2013-2021 The Board of Trustees of The Leland Stanford
+    Junior University. The annotations and database rights are licensed
+    CC BY-SA 4.0. That licence does not cover the underlying texts
+    (weblogs, newsgroups, emails, reviews and Yahoo! Answers); see the
+    treebank's README for the rights in them.
+
+  - Sentences from Wikipedia, Wikinews and Stack Exchange, tagged
+    automatically with Claude Sonnet 5 (`claude-sonnet-5`, Anthropic) in
+    July 2026:
+      Wikipedia       CC BY-SA 4.0
+      Wikinews        public domain, CC BY 2.5 or CC BY 4.0, by publication
+                      date
+      Stack Exchange  CC BY-SA 2.5, 3.0 or 4.0, per post
+    Every article and post is listed with its URL, revision or author, and
+    licence at
+    https://github.com/yohasebe/engtagger/tree/master/sources
+    Neither the original authors nor Anthropic endorse the model.
+
+  When redistributing the model file, keep this notice.
+
+3. Not included
+
+  Unlike the 0.4.x line, this version bundles no data derived from the Penn
+  Treebank; the classic HMM probability tables were retired with the HMM
+  engine. The 0.4.x releases remain available on RubyGems for users who
+  need them (gem "engtagger", "~> 0.4").

@@ -1,50 +1,20 @@
 # frozen_string_literal: true
 
-require "lru_redux"
 require_relative "engtagger/version"
 require_relative "engtagger/porter"
+require_relative "engtagger/perceptron"
 
-module BoundedSpaceMemoizable
-  def memoize(method, max_cache_size = 100_000)
-    # alias_method is faster than define_method + old.bind(self).call
-    alias_method "__memoized__#{method}", method
-    module_eval <<-MODEV
-      def #{method}(*a)
-        @__memoized_#{method}_cache ||= LruRedux::Cache.new(#{max_cache_size}, true)
-        @__memoized_#{method}_cache[a] ||= __memoized__#{method}(*a)
-      end
-    MODEV
-  end
-end
-
-# English part-of-speech tagger class
+# English part-of-speech tagger.
+#
+# Tagging runs an averaged perceptron over a bundled model (see NOTICE for its
+# training data). `add_tags` produces XML-style output in the classic tagset,
+# and the extraction methods (`get_nouns`, `get_noun_phrases`, ...) read that
+# output. Pass `tagset: :ptb` to get standard Penn Treebank tags from
+# `tag_pairs` and `get_readable`.
 class EngTagger
-  extend BoundedSpaceMemoizable
-
-  # File paths
-  DEFAULT_LEXPATH = File.join(File.dirname(__FILE__), "engtagger")
-  DEFAULT_WORDPATH = File.join(DEFAULT_LEXPATH, "pos_words.hash")
-  DEFAULT_TAGPATH = File.join(DEFAULT_LEXPATH, "pos_tags.hash")
-
   #################
   # Class methods #
   #################
-
-  # Return a class variable that holds probability data.
-  #
-  # @return [Hash] the probability data
-  #
-  def self.hmm
-    @@hmm
-  end
-
-  # Return a class variable that holds lexical data.
-  #
-  # @return [Hash] the lexicon
-  #
-  def self.lexicon
-    @@lexicon
-  end
 
   # Return a regexp from a string argument that matches an XML-style pos tag
   def self.get_ext(tag = nil)
@@ -147,10 +117,16 @@ class EngTagger
   tags = tags.collect { |t| t.gsub("&", "and").gsub("/", "or") }
   TAGS = Hash[*tags]
 
+  # Configuration keys of the retired HMM engine. They are accepted (so 0.4-era
+  # initializers keep working) but have nothing to configure anymore; passing
+  # one triggers a single warning rather than an error.
+  RETIRED_CONF_KEYS = %i[
+    relax unknown_word_tag tag_lex word_lex unknown_lex word_path tag_path
+    current_tag
+  ].freeze
+
   # Hash storing config values:
   #
-  # * :unknown_word_tag
-  #    => (String) Tag to assign to unknown words
   # * :stem
   #    => (Boolean) Stem single words using Porter module
   # * :weight_noun_phrases
@@ -159,22 +135,13 @@ class EngTagger
   # * :longest_noun_phrase
   #    => (Integer) Will ignore noun phrases longer than this threshold. This
   #        affects only the get_words() and get_nouns() methods.
-  # * :relax
-  #    => (Boolean) Relax the Hidden Markov Model: this may improve accuracy for
-  #        uncommon words, particularly words used polysemously
-  # * :tag_lex
-  #    => (String) Name of the YAML file containing a hash of adjacent part of
-  #         speech tags and the probability of each
-  # * :word_lex
-  #    => (String) Name of the YAML file containing a hash of words and corresponding
-  #        parts of speech
-  # * :unknown_lex
-  #    => (String) Name of the YAML file containing a hash of tags for unknown
-  #        words and corresponding parts of speech
-  # * :tag_path
-  #    => (String) Directory path of tag_lex
-  # * :word_path
-  #    => (String) Directory path of word_lex and unknown_lex
+  # * :tagset
+  #    => (Symbol) :legacy (default) emits the classic XML-safe lowercase tags;
+  #        :ptb makes tag_pairs and get_readable emit standard Penn Treebank
+  #        tags (DT, PRP$, ".", ...). add_tags always uses the classic tagset,
+  #        which is what keeps its output usable as XML and regex-friendly.
+  # * :model
+  #    => (String) Path to a packed model file; defaults to the bundled model
   # * :debug
   #    => (Boolean) Print debug messages
   attr_accessor :conf
@@ -187,33 +154,22 @@ class EngTagger
   # See above for details.
   def initialize(params = {})
     @conf = {}
-    @conf[:unknown_word_tag] = ""
     @conf[:stem] = false
     @conf[:weight_noun_phrases] = false
     @conf[:longest_noun_phrase] = 5
-    @conf[:relax] = false
-    @conf[:tag_lex] = "tags.yml"
-    @conf[:word_lex] = "words.yml"
-    @conf[:unknown_lex] = "unknown.yml"
-    @conf[:word_path] = DEFAULT_WORDPATH
-    @conf[:tag_path] = DEFAULT_TAGPATH
+    @conf[:tagset] = :legacy
+    @conf[:model] = Perceptron::DEFAULT_MODEL
     @conf[:debug] = false
-    # assuming that we start analyzing from the beginning of a new sentence...
-    @conf[:current_tag] = "pp"
     @conf.merge!(params) if params
-    if !File.exist?(@conf[:word_path]) || !File.exist?(@conf[:tag_path])
-      print "Couldn't locate POS lexicon, creating a new one" if @conf[:debug]
-      @@hmm = {}
-      @@lexicon = {}
-    else
-      lexf = File.open(@conf[:word_path], "rb")
-      @@lexicon = Marshal.load(lexf)
-      lexf.close
-      hmmf = File.open(@conf[:tag_path], "rb")
-      @@hmm = Marshal.load(hmmf)
-      hmmf.close
-    end
+    warn_retired_keys(params)
+    @tagger = self.class.perceptron_for(@conf[:model])
     @@mnp = get_max_noun_regex
+  end
+
+  # One loaded model shared across instances.
+  def self.perceptron_for(model_path)
+    @@perceptrons ||= {}
+    @@perceptrons[model_path] ||= Perceptron.new(model: model_path)
   end
 
   ##################
@@ -228,17 +184,10 @@ class EngTagger
   def tag_pairs(text)
     return [] unless valid_text(text)
 
-    out = clean_text(text).map do |word|
-      cleaned_word = clean_word word
-      tag = assign_tag(@conf[:current_tag], cleaned_word)
-      @conf[:current_tag] = tag = tag && !tag.empty? ? tag : "nn"
+    @tagger.tag(text).map do |word, tag|
+      tag = @tagger.legacy_tag(tag) unless @conf[:tagset] == :ptb
       [word, tag.to_sym]
     end
-
-    # reset the tagger state
-    reset
-
-    out
   end
 
   # Examine the string provided and return it fully tagged in XML style.
@@ -247,21 +196,17 @@ class EngTagger
   # @param verbose [false, true] whether to use verbose tags
   # @return [String] the marked-up string
   #
-  # Examine the string provided and return it fully tagged in XML style
+  # Uses the classic tagset regardless of :tagset, so every tag is a valid
+  # element name and the output works with the extraction methods below. The
+  # text inside the tags is not escaped.
   def add_tags(text, verbose = false)
     return nil unless valid_text(text)
 
-    tagged = []
-    words = clean_text(text)
-    words.each do |word|
-      cleaned_word = clean_word(word)
-      tag = assign_tag(@conf[:current_tag], cleaned_word)
-      @conf[:current_tag] = tag = tag && tag != "" ? tag : "nn"
+    @tagger.tag(text).map do |word, ptb|
+      tag = @tagger.legacy_tag(ptb)
       tag = EngTagger.explain_tag(tag) if verbose
-      tagged << "<#{tag}>#{word}</#{tag}>"
-    end
-    reset
-    tagged.join(" ")
+      "<#{tag}>#{word}</#{tag}>"
+    end.join(" ")
   end
 
   # Given a text string, return as many nouns and noun phrases as possible.
@@ -287,9 +232,13 @@ class EngTagger
   def get_readable(text, verbose = false)
     return nil unless valid_text(text)
 
-    tagged = add_tags(text, verbose)
-    tagged.gsub(%r{<\w+>([^<]+|[<\w>]+)</(\w+)>}o) do
-      "#{$1}/#{$2.upcase}"
+    if @conf[:tagset] == :ptb && !verbose
+      @tagger.get_readable(text)
+    else
+      tagged = add_tags(text, verbose)
+      tagged.gsub(%r{<\w+>([^<]+|[<\w>]+)</(\w+)>}o) do
+        "#{$1}/#{$2.upcase}"
+      end
     end
   end
 
@@ -305,8 +254,7 @@ class EngTagger
     sentences.map do |sentence|
       # Reattach punctuation to the neighboring word: opening quotes/brackets
       # and currency signs join the following word, everything else (commas,
-      # closing marks, possessives) joins the preceding word. (These gsub
-      # results used to be discarded, so none of this cleanup was applied.)
+      # closing marks, possessives) joins the preceding word.
       sentence.gsub(/ ('s?) /) { "#{$1} " }
               .gsub(/ ([`(\[{$]+) /) { " #{$1}" }
               .gsub(/ ([^\w\s`(\[{$]+) /) { "#{$1} " }
@@ -586,20 +534,10 @@ class EngTagger
     ret
   end
 
-  # Reads some included corpus data and saves it in a stored hash on the
-  # local file system. This is called automatically if the tagger can't
-  # find the stored lexicon.
-  def install
-    puts "Creating part-of-speech lexicon" if @conf[:debug]
-    load_tags(@conf[:tag_lex])
-    load_words(@conf[:word_lex])
-    load_words(@conf[:unknown_lex])
-    File.open(@conf[:word_path], "wb") do |f|
-      Marshal.dump(@@lexicon, f)
-    end
-    File.open(@conf[:tag_path], "wb") do |f|
-      Marshal.dump(@@hmm, f)
-    end
+  # Return the word stem as given by Stemmable module. This can be
+  # turned off with the class parameter @conf[:stem] => false.
+  def stem(word)
+    @conf[:stem] ? word.stem : word
   end
 
   ###################
@@ -607,6 +545,20 @@ class EngTagger
   ###################
 
   private
+
+  def warn_retired_keys(params)
+    return unless params
+
+    retired = params.keys.map(&:to_sym) & RETIRED_CONF_KEYS
+    return if retired.empty?
+
+    @@warned_retired ||= {}
+    retired.reject { |k| @@warned_retired[k] }.each do |key|
+      @@warned_retired[key] = true
+      warn "EngTagger: config key :#{key} belonged to the retired HMM engine " \
+           "and is ignored as of 2.0 (pin \"~> 0.4\" if you need it)"
+    end
+  end
 
   def build_trimmed(tagged, tags)
     tags.map { |tag| tagged.scan(tag) }.flatten.map do |n|
@@ -623,28 +575,6 @@ class EngTagger
       ret[n] += 1 unless n =~ /\A\s*\z/
     end
     ret
-  end
-
-  # Downcase the first letter of word
-  def lcfirst(word)
-    word.split(//)[0].downcase + word.split(//)[1..].join
-  end
-
-  # Upcase the first letter of word
-  def ucfirst(word)
-    word.split(//)[0].upcase + word.split(//)[1..].join
-  end
-
-  # Return the word stem as given by Stemmable module. This can be
-  # turned off with the class parameter @conf[:stem] => false.
-  def stem(word)
-    @conf[:stem] ? word.stem : word
-  end
-
-  # This method will reset the preceding tag to a sentence ender (PP).
-  # This prepares the first word of a new sentence to be tagged correctly.
-  def reset
-    @conf[:current_tag] = "pp"
   end
 
   # Check whether the text is a valid string
@@ -673,204 +603,6 @@ class EngTagger
     downcase ? text.downcase : text
   end
 
-  # Strip the provided text and separate off any punctuation in preparation for tagging
-  def clean_text(text)
-    return false unless valid_text(text)
-
-    cleaned_text = text.encode("utf-8")
-    tokenized = []
-    # Tokenize the text (splitting on punctuation as you go)
-    cleaned_text.split(/\s+/).each do |line|
-      tokenized.concat(split_punct(line))
-    end
-    split_sentences(tokenized)
-  end
-
-  # This handles all of the trailing periods, keeping those that
-  # belong on abbreviations and removing those that seem to be
-  # at the end of sentences. This method makes some assumptions
-  # about the use of capitalization in the incoming text
-  def split_sentences(array)
-    tokenized = array
-    people = %w[jr mr ms mrs dr prof esq sr sen sens rep reps gov attys attys
-                supt det mssrs rev]
-    army   = %w[col gen lt cmdr adm capt sgt cpl maj brig]
-    inst   = %w[dept univ assn bros ph.d]
-    place  = %w[arc al ave blvd bld cl ct cres exp expy dist mt mtn ft fy fwy
-                hwy hway la pde pd plz pl rd st tce]
-    comp   = %w[mfg inc ltd co corp]
-    state  = %w[ala ariz ark cal calif colo col conn del fed fla ga ida id ill
-                ind ia kans kan ken ky la me md is mass mich minn miss mo mont
-                neb nebr nev mex okla ok ore penna penn pa dak tenn tex ut vt
-                va wash wis wisc wy wyo usafa alta man ont que sask yuk]
-    month  = %w[jan feb mar apr may jun jul aug sep sept oct nov dec]
-    misc   = %w[vs etc no esp]
-    abbr = {}
-    [people, army, inst, place, comp, state, month, misc].flatten.each do |i|
-      abbr[i] = true
-    end
-    words = []
-    tokenized.each_with_index do |_, i|
-      if tokenized[i + 1] && tokenized[i + 1] =~ /[A-Z\W]/ && tokenized[i] =~ /\A(.+)\.\z/
-        w = $1
-        # Don't separate the period off words that
-        # meet any of the following conditions:
-        #
-        # 1. It is defined in one of the lists above
-        # 2. It is only one letter long: Alfred E. Sloan
-        # 3. It has a repeating letter-dot: U.S.A. or J.C. Penney
-        unless abbr[w.downcase] || [/\A[a-z]\z/i, /[a-z](?:\.[a-z])+\z/i].any? { |r| r.match? w }
-          words <<  w
-          words << "."
-          next
-        end
-      end
-      words << tokenized[i]
-    end
-    # If the final word ends in a period..
-    if words[-1] && words[-1] =~ /\A(.*\w)\.\z/
-      words[-1] = $1
-      words.push "."
-    end
-    words
-  end
-
-  # Separate punctuation from words, where appropriate. This leaves trailing
-  # periods in place to be dealt with later. Called by the clean_text method.
-  def split_punct(text)
-    # If there's no punctuation, return immediately
-    return [text] if /\A\w+\z/ =~ text
-
-    # Sanity checks
-    text = text.gsub(/\W{10,}/o, " ")
-
-    # Put quotes into a standard format
-    text = text.gsub(/`(?!`)(?=.*\w)/o, "` ") # Shift left quotes off text
-    text = text.gsub(/"(?=.*\w)/o, " `` ") # Convert left quotes to ``
-    text = text.gsub(/(\W|^)'(?=.*\w)/o) { $1 ? $1 + " ` " : " ` " } # Convert left quotes to `
-    text = text.gsub(/"/, " '' ") # Convert (remaining) quotes to ''
-    text = text.gsub(/(\w)'(?!')(?=\W|$)/o) { $1 + " ' " } # Separate right single quotes
-
-    # Handle all other punctuation
-    text = text.gsub(/--+/o, " - ") # Convert and separate dashes
-    text = text.gsub(/,(?!\d)/o, " , ") # Shift commas off everything but numbers
-    text = text.gsub(/:/o, " : ") # Shift semicolons off
-    text = text.gsub(/(\.\.\.+)/o) { " " + $1 + " " } # Shift ellipses off
-    text = text.gsub(/([(\[{}\])])/o) { " " + $1 + " " } # Shift off brackets
-    text = text.gsub(/([!?#$%;~|])/o) { " " + $1 + " " } # Shift off other ``standard'' punctuation
-
-    # English-specific contractions
-    text = text.gsub(/([A-Za-z])'([dms])\b/o) { $1 + " '" + $2 } # Separate off 'd 'm 's
-    text = text.gsub(/n't\b/o, " n't") # Separate off n't
-    text = text.gsub(/'(ve|ll|re)\b/o) { " '" + $1 } # Separate off 've, 'll, 're
-    text.split(" ")
-  end
-
-  # Given a preceding tag, assign a tag word. Called by the add_tags method.
-  # This method is a modified version of the Viterbi algorithm for part-of-speech tagging
-  def assign_tag(prev_tag, word)
-    case word
-    when "-unknown-"
-      # classify unknown words accordingly
-      return @conf[:unknown_word_tag]
-    when "-sym-"
-      # If this is a symbol, tag it as a symbol
-      return "sym"
-    end
-    best_so_far = 0
-    w = @@lexicon[word] || {}
-    t = @@hmm
-
-    # TAG THE TEXT: What follows is a modified version of the Viterbi algorithm
-    # which is used in most POS taggers
-    best_tag = ""
-    (t[prev_tag] || {}).each_key do |tag|
-      # With @config[:relax] set, this method
-      # will also include any `open classes' of POS tags
-      pw = 0
-      if w[tag]
-        pw = w[tag]
-      elsif @conf[:relax] && tag =~ /\A(?:jj|nn|rb|vb)/
-        pw = 0
-      else
-        next
-      end
-
-      # Bayesian logic:
-      # P =  P( tag | prev_tag ) * P( tag | word )
-      probability = t[prev_tag][tag] * (pw + 1)
-      # Set the tag with maximal probability
-      if probability > best_so_far
-        best_so_far = probability
-        best_tag = tag
-      end
-    end
-    best_tag
-  end
-
-  # This method determines whether a word should be considered in its
-  # lower or upper case form. This is useful in considering proper nouns
-  # and words that begin sentences. Called by add_tags.
-  def clean_word(word)
-    lcf = lcfirst(word)
-    # seen this word as it appears (lower or upper case)
-    if @@lexicon[word]
-      word
-    elsif @@lexicon[lcf]
-      # seen this word only as lower case
-      lcf
-    else
-      # never seen this word. guess.
-      classify_unknown_word(word)
-    end
-  end
-
-  # This changes any word not appearing in the lexicon to identifiable
-  # classes of words handled by a simple unknown word classification
-  # metric. Called by the clean_word method.
-  def classify_unknown_word(word)
-    case word
-    when /[({\[]/ # Left brackets
-      "*LRB*"
-    when /[)}\]]/ # Right brackets
-      "*RRB*"
-    when /-?(?:\d+(?:\.\d*)?|\.\d+)\z/ # Floating point number
-      "*NUM*"
-    when %r{\A\d+[\d/:-]+\d\z} # Other number constructs
-      "*NUM*"
-    when /\A-?\d+\w+\z/o # Ordinal number
-      "*ORD*"
-    when /\A[A-Z][A-Z.-]*\z/o # Abbreviation (all caps)
-      "-abr-"
-    when /\w-\w/o # Hyphenated word
-      /-([^-]+)\z/ =~ word
-      h_suffix = $1
-      if h_suffix && @@lexicon[h_suffix] && @@lexicon[h_suffix]["jj"]
-        # last part of this is defined as an adjective
-        "-hyp-adj-"
-      else
-        # last part of this is not defined as an adjective
-        "-hyp-"
-      end
-    when /\A\W+\z/o
-      "-sym-"  # Symbol
-    when ucfirst(word)
-      "-cap-"  # Capitalized word
-    when /ing\z/o
-      "-ing-"  # Ends in "ing"
-    when /s\z/o
-      "-s-"    # Ends in "s"
-    when /tion\z/o
-      "-tion-" # Ends in "tion"
-    when /ly\z/o
-      "-ly-"  # Ends in "ly"
-    when /ed\z/o
-      "-ed-"  # Ends in "ed
-    else
-      "-unknown-" # Completely unknown
-    end
-  end
-
   # This returns a compiled regexp for extracting maximal noun phrases
   # from a POS-tagged text.
   def get_max_noun_regex
@@ -889,56 +621,4 @@ class EngTagger
       )*
       /xo
   end
-
-  # Load the 2-grams into a hash from YAML data: This is a naive (but fast)
-  # YAML data parser. It will load a YAML document with a collection of key:
-  # value entries ( {pos tag}: {probability} ) mapped onto single keys ( {tag} ).
-  # Each map is expected to be on a single line; i.e., det: { jj: 0.2, nn: 0.5, vb: 0.0002 }
-  def load_tags(lexicon, lexpath = DEFAULT_LEXPATH)
-    path = File.join(lexpath, lexicon)
-    fh = File.open(path, "r")
-    while (line = fh.gets)
-      /\A"?([^{"]+)"?: \{ (.*) \}/ =~ line
-      next unless $1 && $2
-
-      key = $1
-      data = $2
-      items = data.split(/,\s+/)
-      pairs = {}
-      items.each do |i|
-        /([^:]+):\s*(.+)/ =~ i
-        pairs[$1] = $2.to_f
-      end
-      @@hmm[key] = pairs
-    end
-    fh.close
-  end
-
-  # Load the 2-grams into a hash from YAML data: This is a naive (but fast)
-  # YAML data parser. It will load a YAML document with a collection of key:
-  # value entries ( {pos tag}: {count} ) mapped onto single keys ( {a word} ).
-  # Each map is expected to be on a single line; i.e., key: { jj: 103, nn: 34, vb: 1 }
-  def load_words(lexicon, lexpath = DEFAULT_LEXPATH)
-    path = File.join(lexpath, lexicon)
-    fh = File.open(path, "r")
-    while (line = fh.gets)
-      /\A"?([^{"]+)"?: \{ (.*) \}/ =~ line
-      next unless $1 && $2
-
-      key = $1
-      data = $2
-      items = data.split(/,\s+/)
-      pairs = {}
-      items.each do |i|
-        /([^:]+):\s*(.+)/ =~ i
-        pairs[$1] = $2.to_f
-      end
-      @@lexicon[key] = pairs
-    end
-    fh.close
-  end
-
-  # memoize the stem and assign_tag methods
-  memoize("stem")
-  memoize("assign_tag")
 end

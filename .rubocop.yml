@@ -1,18 +1,12 @@
 AllCops:
   NewCops: disable
   SuggestExtensions: false
-  TargetRubyVersion: 2.6
+  TargetRubyVersion: 3.0
 
 Style/Documentation:
   Enabled: false
 
 Naming/AccessorMethodName:
-  Enabled: false
-
-Naming/VariableNumber:
-  Enabled: false
-
-Naming/FileName:
   Enabled: false
 
 Security/MarshalLoad:
@@ -37,12 +31,6 @@ Style/StringLiterals:
 Style/StringLiteralsInInterpolation:
   Enabled: true
   EnforcedStyle: double_quotes
-
-Style/WordArray:
-  Enabled: false
-
-Style/EvalWithLocation:
-  Enabled: false
 
 Layout/LineLength:
   Max: 400
