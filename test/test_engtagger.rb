@@ -29,7 +29,12 @@ class TestEngTagger < Test::Unit::TestCase
 
   def test_explain_tag
     assert_equal("noun", EngTagger.explain_tag("nn"))
-    assert_equal("verb_infinitive", EngTagger.explain_tag("vb"))
+    assert_equal("verb_base_form", EngTagger.explain_tag("vb"))
+    assert_equal("infinitive_marker", EngTagger.explain_tag("to"))
+    assert_equal("wh_pronoun", EngTagger.explain_tag("wp"))
+    assert_equal("pronoun_personal", EngTagger.explain_tag("prp"))
+    assert_equal("cardinal_number", EngTagger.explain_tag("cd"))
+    assert_equal("preposition_or_subordinating_conjunction", EngTagger.explain_tag("in"))
   end
 
   # Testing tagging methods
@@ -43,7 +48,7 @@ class TestEngTagger < Test::Unit::TestCase
   def test_add_tags_verbose
     assert_equal(
       "<noun_proper>Alice</noun_proper> " \
-      "<verb_present_3sg_s_form>runs</verb_present_3sg_s_form> " \
+      "<verb_present_3rd_person_singular>runs</verb_present_3rd_person_singular> " \
       "<punctuation_sentence_ender>.</punctuation_sentence_ender>",
       @tagger.add_tags("Alice runs.", true)
     )

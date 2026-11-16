@@ -33,30 +33,19 @@ Token accuracy (%) on the test splits of two Universal Dependencies English
 treebanks — [EWT](https://universaldependencies.org/treebanks/en_ewt/) (web
 media: reviews, emails, forums) and
 [GUM](https://universaldependencies.org/treebanks/en_gum/) (multi-genre) —
-using Penn Treebank tags, gold tokenization and gold sentence boundaries
-(Universal Dependencies release 2.18):
+using Penn Treebank tags, gold sentence boundaries and, except where noted,
+gold tokenization (Universal Dependencies release 2.18):
 
 | System | Algorithm | EWT test | GUM test |
 |---|---|---|---|
-| EngTagger 0.4 (previous) | HMM (bigram) | 84.9 | 88.4 |
-| NLTK 3 | averaged perceptron, WSJ-trained | 85.1 | 90.4 |
+| EngTagger 0.4.3 (previous) | HMM (bigram) | 84.9\* | 88.4\* |
+| NLTK 3.10.3 | averaged perceptron, WSJ-trained | 85.1 | 90.4 |
 | **EngTagger 2.0 (this gem)** | **averaged perceptron** | **94.2** | **95.7** |
-| Stanza | neural, EWT-trained | 96.2 | 97.7 |
+| Stanza 1.15.1 (default model) | neural | 96.2 | 97.6 |
 
-For a fair reading of the numbers:
-
-* **EngTagger 2.0** is measured with the model file shipped in this gem. It
-  is trained on the EWT training split and on automatically tagged text from
-  Wikipedia, Wikinews and Stack Exchange. No GUM annotations were used in
-  training, so GUM is a held-out treebank for it.
-* The figures are for text that is already split into sentences and tokens.
-  Tagging raw text also depends on the tokenizer.
-* **NLTK 3** uses the same algorithm family as EngTagger 2.0 but its bundled
-  model is trained on Wall Street Journal text, so it runs out-of-domain on
-  these test sets.
-* **Stanza** is a neural pipeline (Python/PyTorch, large models) trained on
-  EWT itself; it serves as the accuracy reference point, at the cost of
-  dependencies and compute.
+\* EngTagger 0.4.3 tokenizes its input itself, so it is scored on the
+sentences it splits the same way as the treebank (71% of the tokens of EWT
+test, 79% of GUM test). On those sentences EngTagger 2.0 scores 94.1 (EWT) and 95.8 (GUM).
 
 ## Synopsis
 
@@ -121,6 +110,17 @@ ptb.tag_pairs("Alice chased the cat.")
 #=> [["Alice", :NNP], ["chased", :VBD], ["the", :DT], ["cat", :NN], [".", :"."]]
 ```
 
+## Options
+
+```ruby
+EngTagger.new(
+  tagset: :ptb,              # standard tags from tag_pairs and get_readable (default: classic tagset)
+  stem: true,                # stem the words returned by the extraction methods (default: false)
+  longest_noun_phrase: 3,    # longest noun phrase to extract, in words (default: 5)
+  weight_noun_phrases: true  # multiply the count of a noun phrase by its length in words (default: false)
+)
+```
+
 ## Tag Set
 
 `add_tags`, `tag_pairs` and `get_readable` use the classic EngTagger tagset by
@@ -129,52 +129,57 @@ characters are renamed to work in XML-style markup and regular expressions
 (`DET` for `DT`, `PRPS` for `PRP$`, and named punctuation classes such as `PP`
 for `.`). With `EngTagger.new(tagset: :ptb)`, `tag_pairs` and `get_readable`
 emit standard Penn Treebank tags instead; `add_tags` always uses the classic
-tagset, whose tags are valid element names. The text inside the tags is not
-escaped.
+tagset. The text inside the tags is not escaped.
+
+With `tagset: :ptb`, the extended Penn Treebank tags used by Universal
+Dependencies also appear: `HYPH` (hyphen), `ADD` (e-mail address or URL),
+`NFP` (emoticon or other superfluous punctuation), `AFX` (affix) and `GW`
+(part of a word written apart). The classic tagset folds them into `PPC`,
+`NN`, `SYM`, `JJ` and `NN`.
 
     CC      Conjunction, coordinating               and, or
-    CD      Adjective, cardinal number              3, fifteen
+    CD      Cardinal number                         3, fifteen
     DET     Determiner                              this, each, some
     EX      Pronoun, existential there              there
     FW      Foreign words
-    IN      Preposition / Conjunction               for, of, although, that
+    IN      Preposition / Subordinating conjunction for, of, to, although, that
     JJ      Adjective                               happy, bad
     JJR     Adjective, comparative                  happier, worse
     JJS     Adjective, superlative                  happiest, worst
-    LS      Symbol, list item                       A, A.
+    LS      List item marker                        1, 2 (in lists)
     MD      Verb, modal                             can, could, 'll
     NN      Noun                                    aircraft, data
     NNP     Noun, proper                            London, Michael
     NNPS    Noun, proper, plural                    Australians, Methodists
     NNS     Noun, plural                            women, books
-    PDT     Determiner, prequalifier                quite, all, half
-    POS     Possessive                              's, '
-    PRP     Determiner, possessive second           mine, yours
+    PDT     Predeterminer                           all, half
+    POS     Possessive ending                       's, '
+    PRP     Pronoun, personal                       I, him, mine, yours
     PRPS    Determiner, possessive                  their, your
     RB      Adverb                                  often, not, very, here
     RBR     Adverb, comparative                     faster
     RBS     Adverb, superlative                     fastest
-    RP      Adverb, particle                        up, off, out
+    RP      Particle                                up, off, out
     SYM     Symbol                                  *
-    TO      Preposition                             to
+    TO      Infinitive marker                       to (go)
     UH      Interjection                            oh, yes, mmm
-    VB      Verb, infinitive                        take, live
+    VB      Verb, base form                         take, live
     VBD     Verb, past tense                        took, lived
     VBG     Verb, gerund or present participle      taking, living
-    VBN     Verb, past/passive participle           taken, lived
-    VBP     Verb, base present form                 take, live
-    VBZ     Verb, present 3SG -s form               takes, lives
-    WDT     Determiner, question                    which, whatever
-    WP      Pronoun, question                       who, whoever
-    WPS     Determiner, possessive & question       whose
-    WRB     Adverb, question                        when, how, however
+    VBN     Verb, past participle                   taken, lived
+    VBP     Verb, present, non-3rd-person singular  take, am, are
+    VBZ     Verb, present, 3rd-person singular      takes, is, has
+    WDT     Wh-determiner                           which, whatever
+    WP      Wh-pronoun                              who, whoever
+    WPS     Possessive wh-pronoun                   whose
+    WRB     Wh-adverb                               when, how, where
 
     PP      Punctuation, sentence ender             ., !, ?
     PPC     Punctuation, comma                      ,
     PPD     Punctuation, dollar sign                $
     PPL     Punctuation, quotation mark left        ``
     PPR     Punctuation, quotation mark right       ''
-    PPS     Punctuation, colon, semicolon, elipsis  :, ..., -
+    PPS     Punctuation, colon, semicolon, ellipsis :, ;, ...
     LRB     Punctuation, left bracket               (, {, [
     RRB     Punctuation, right bracket              ), }, ]
 
@@ -189,32 +194,31 @@ The tagger ships with an averaged-perceptron model
   automatically with a large language model. Every article and post is listed
   with its licence in [`sources/`](https://github.com/yohasebe/engtagger/tree/master/sources).
 
-Unlike the 0.4.x line, no Penn Treebank-derived data is included. Provenance
-and attribution details are in the NOTICE file; the packed model format is
-documented in the repository (`docs/model-format.md`).
-
 ## Installation
 
 ```bash
 gem install engtagger
 ```
 
-Requires Ruby >= 3.0 and nothing else. Pre-release versions are installed with
-`gem install engtagger --pre`.
+Pre-release versions are installed with `gem install engtagger --pre`.
 
 ## Upgrading from 0.4.x
 
-The tagging and extraction methods keep their names and arguments, but the
-tags themselves are produced by a different, considerably more accurate
-engine, so tagged output is not byte-identical to 0.4.x. Tokenization also
-follows PTB/UD conventions more closely (e.g. `don't` splits as `do|n't`).
-Configuration keys of the retired HMM engine
-(`:relax`, `:unknown_word_tag`, lexicon paths) are accepted and ignored with
-a warning; `install`, `EngTagger.hmm`, `EngTagger.lexicon` and the
-`DEFAULT_LEXPATH`, `DEFAULT_WORDPATH` and `DEFAULT_TAGPATH` constants were
-removed. `assign_tag(prev_tag, word)` still tags one word from the tag before
-it, but it does not see the surrounding words; use `tag_pairs` or `add_tags`
-wherever the whole text is available.
+* The tagging and extraction methods keep their names and arguments.
+* Tagged output differs from 0.4.x: the tags come from a different,
+  considerably more accurate engine.
+* Tokenization follows PTB/UD conventions more closely (e.g. `don't` splits
+  as `do|n't` and `well-known` as `well|-|known`).
+* The configuration keys of the HMM engine (`:relax`, `:unknown_word_tag`,
+  lexicon paths) are ignored with a warning.
+* `install`, `EngTagger.hmm`, `EngTagger.lexicon` and the `DEFAULT_LEXPATH`,
+  `DEFAULT_WORDPATH` and `DEFAULT_TAGPATH` constants were removed.
+* The descriptions of several tags were corrected (see [Tag Set](#tag-set)),
+  so the verbose names from `EngTagger.explain_tag`, `add_tags(text, true)`
+  and `get_readable(text, true)` differ; update code that matches them.
+* `assign_tag(prev_tag, word)` tags one word from the tag before it, without
+  seeing the surrounding words; use `tag_pairs` or `add_tags` wherever the
+  whole text is available.
 
 If you need the old engine's exact output, pin the previous line:
 
@@ -226,11 +230,7 @@ gem "engtagger", "~> 0.4"
 
 Yoichiro Hasebe
 
-EngTagger began in 2009 as a Ruby port of Lingua::EN::Tagger by Aaron Coburn.
-Version 2.0 replaces its HMM tagger and probability tables with a new
-averaged-perceptron tagger, tokenizer and trained model. The extraction of
-nouns and noun phrases and the formatting of tagged output retain routines
-ported and adapted from Lingua::EN::Tagger.
+EngTagger began as a Ruby port of Lingua::EN::Tagger by Aaron Coburn.
 
 ## License
 
